@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>戰棋遊戲 MVP</title>
+  </head>
+  <body>
+    <!-- 確保 id 拼字完全正確：gameCanvas -->
+    <canvas id="gameCanvas" width="800" height="600" style="border:1px solid #ccc; background-color: #f5f5f5;"></canvas>
+    
+    <!-- 確保這行放在 canvas 後面 -->
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+  <style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* 防止出現滾動條 */
+        background-color: #1a1a1a; /* 深色背景襯托 Canvas */
+    }
+    #gameCanvas {
+        display: block;
+    }
+</style>
+</html>
