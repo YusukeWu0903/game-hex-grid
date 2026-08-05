@@ -1,13 +1,13 @@
 // src/entities/Unit.ts
 import { HexNode } from '../HexNode'; // 請確認引入路徑符合你的專案結構
-import type { JobStats } from './Job';
+import type { Job } from './Job';
 
 export type Faction = 'PLAYER' | 'ENEMY' | 'NEUTRAL'; // 陣營
 
 export class Unit {
     public id: string;
     public node: HexNode;     // 單位目前所在的格子
-    public job: JobStats;     // 單位的職業
+    public job: Job;          // 單位的職業
     public faction: Faction;  // 屬於我方還是敵方
     public hasActed: boolean = false; // 本回合是否已行動完畢
     public hp: number;
@@ -15,7 +15,7 @@ export class Unit {
     public mp: number;    // 新增
     public maxHp: number;
 
-    constructor(id: string, node: HexNode, job: JobStats, faction: Faction, maxHp: number = 10) {
+    constructor(id: string, node: HexNode, job: Job, faction: Faction, maxHp: number = 10) {
         this.id = id;
         this.node = node;
         this.job = job;

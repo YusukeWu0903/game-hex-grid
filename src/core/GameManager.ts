@@ -79,7 +79,7 @@ export class GameManager {
                     if (this.grid) {
                         const neutralUnits = this.units.filter(u => u.faction === 'NEUTRAL' && u.hp > 0);
                         
-                        neutralUnits.forEach(neutral => {
+                        neutralUnits.forEach(_neutral => {
                             if (this.state === GameState.GAME_OVER) return;
                             // 未來可以在此處掛載 SimpleAI 或獨立的中立 AI 邏輯
                             this.checkWinLossCondition();

@@ -7,8 +7,8 @@ export class Pathfinder {
      * 取得地形移動消耗
      */
     public static getTerrainCost(node: HexNode): number {
-        if (!node.isWalkable || node.terrain === 'MOUNTAIN') return 999; // 山脈/障礙無法通行
-        if (node.terrain === 'FOREST') return 2; // 森林消耗 2 點移動力
+        if (!node.isWalkable || node.terrain === 'MOUNTAIN' || node.terrain === 'WATER') return 999; // 山脈/水域/障礙無法通行
+        if (node.terrain === 'FOREST' || node.terrain === 'SWAMP' || node.terrain === 'HILLS') return 2; // 森林/沼澤/丘陵消耗 2 點移動力
         return 1; // 平地消耗 1 點移動力
     }
 
@@ -16,7 +16,7 @@ export class Pathfinder {
      * 尋找兩點間的最短路徑 (A* 演算法)
      */
     public static findPath(grid: HexGrid, startNode: HexNode, targetNode: HexNode, maxSteps: number = Infinity): HexNode[] {
-        if (!targetNode.isWalkable || targetNode.terrain === 'MOUNTAIN') return [];
+        if (!targetNode.isWalkable || targetNode.terrain === 'MOUNTAIN' || targetNode.terrain === 'WATER') return [];
         if (startNode.equals(targetNode)) return [];
 
         const openSet: HexNode[] = [startNode];

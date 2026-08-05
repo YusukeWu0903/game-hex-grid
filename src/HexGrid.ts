@@ -26,34 +26,25 @@ export class HexGrid {
     }
 
     /**
-     * 功能 1：生成正六邊形狀的地圖
+     * 功能 1：生成正六邊形狀的地圖 (預設全為乾淨的平地 PLAIN)
      * @param radius 地圖的半徑 (從中心往外算幾個格子)
      */
     public generateHexagonMap(radius: number): void {
         this.nodes.clear();
         
-        // 1. 先用迴圈建立所有 HexNode 格子
+        // 建立所有 HexNode 格子 (預設 terrain = 'PLAIN', isWalkable = true)
         for (let x = -radius; x <= radius; x++) {
-            // 計算 y 的合法範圍，確保 x+y+z=0 成立且形狀為六邊形
             const startY = Math.max(-radius, -x - radius);
             const endY = Math.min(radius, -x + radius);
             
             for (let y = startY; y <= endY; y++) {
                 const z = -x - y;
-                this.addNode(new HexNode(x, y, z));
+                const node = new HexNode(x, y, z);
+                node.terrain = 'PLAIN';
+                node.isWalkable = true;
+                this.addNode(node);
             }
         }
-
-        // 2. 格子建立完畢後設定地形
-        this.getNodes().forEach(node => {
-            // 把森林設在玩家 P1/P2 正旁邊 (1,0,-1) 和 (-1,0,1)
-            if ((node.x === 1 && node.y === 0) || (node.x === -1 && node.y === 0)) {
-                node.terrain = 'FOREST';
-            } else if (node.x === 0 && node.y === 2) {
-                node.terrain = 'MOUNTAIN';
-                node.isWalkable = false; // 山脈不可通行
-            }
-        });
     }
 
     /**

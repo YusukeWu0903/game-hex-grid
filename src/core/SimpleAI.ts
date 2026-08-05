@@ -2,7 +2,6 @@
 import { HexGrid } from '../HexGrid';
 import { Pathfinder } from '../Pathfinder';
 import { Unit } from '../entities/Unit';
-import { HexNode } from '../HexNode';
 
 export class SimpleAI {
     /**

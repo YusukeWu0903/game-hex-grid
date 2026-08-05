@@ -3,24 +3,331 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>戰棋遊戲 MVP</title>
+    <title>六角格戰棋遊戲 - 關卡與地圖編輯器</title>
   </head>
   <body>
-    <!-- 確保 id 拼字完全正確：gameCanvas -->
-    <canvas id="gameCanvas" width="800" height="600" style="border:1px solid #ccc; background-color: #f5f5f5;"></canvas>
+    <!-- 1. 主選單 (Main Menu) -->
+    <div id="main-menu" class="overlay-screen">
+      <div class="menu-container">
+        <h1>⚔️ HEX TACTICS RPG</h1>
+        <p>六角格戰棋遊戲與關卡編輯器原型</p>
+        <div class="menu-buttons">
+          <button id="btn-start-game" class="menu-btn primary">🎮 開始遊戲 (Game)</button>
+          <button id="btn-open-editor" class="menu-btn secondary">🛠️ 關卡編輯器 (Level Editor)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 關卡編輯器面板 (Level Editor Panel) - 頂層入口 -->
+    <div id="level-editor-panel" class="floating-panel" style="display: none;">
+      <div class="panel-header">
+        <span>📋 關卡編輯器 (Level Editor)</span>
+        <button id="btn-level-back-menu" class="action-btn">🏠 返回主選單</button>
+      </div>
+      <div class="form-group">
+        <label>關卡名稱</label>
+        <input type="text" id="input-level-name" value="關卡 1：遭遇戰" class="panel-input" />
+      </div>
+      <div class="form-group">
+        <label>綁定地圖 (Map)</label>
+        <select id="select-map-bind" class="panel-select">
+          <!-- 動態載入已儲存的地圖 -->
+        </select>
+      </div>
+      <div class="form-group">
+        <label>勝利條件</label>
+        <select id="select-win-cond" class="panel-select">
+          <option value="ANNIHILATION">敵方全滅 (Annihilation)</option>
+          <option value="SURVIVE">生存回合 (Survive)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>失敗條件</label>
+        <select id="select-lose-cond" class="panel-select">
+          <option value="PLAYER_DEATH">我方全滅 (Player Death)</option>
+          <option value="TURN_LIMIT">回合超限 (Turn Limit)</option>
+        </select>
+      </div>
+      <div class="panel-actions">
+        <button id="btn-edit-map" class="io-btn primary-io">🎨 編輯此地圖 (Map Editor)</button>
+        <button id="btn-test-level" class="io-btn">🚀 測試執行關卡</button>
+      </div>
+    </div>
+
+    <!-- 3. 地圖編輯器面板 (Map Editor Panel) - 子模組 -->
+    <div id="map-editor-panel" class="floating-panel" style="display: none;">
+      <div class="panel-header">
+        <span>🗺️ 地圖編輯器 (<span id="editing-map-name">map_tutorial</span>)</span>
+        <button id="btn-back-level-editor" class="action-btn">↩️ 儲存並返回</button>
+      </div>
+      <div class="panel-section-title">地形筆刷</div>
+      <div class="brush-group" id="brush-group">
+        <button class="brush-btn active" data-terrain="PLAIN">平地</button>
+        <button class="brush-btn" data-terrain="FOREST">森林</button>
+        <button class="brush-btn" data-terrain="MOUNTAIN">山脈</button>
+        <button class="brush-btn" data-terrain="SWAMP">沼澤</button>
+        <button class="brush-btn" data-terrain="HILLS">丘陵</button>
+        <button class="brush-btn" data-terrain="WATER">水域</button>
+      </div>
+      <div class="panel-section-title">佈署點筆刷</div>
+      <div class="brush-group" id="spawn-brush-group">
+        <button class="brush-btn spawn-p" data-spawn="PLAYER">🚩 我方 (P)</button>
+        <button class="brush-btn spawn-e" data-spawn="ENEMY">💀 敵方 (E)</button>
+        <button class="brush-btn spawn-clear" data-spawn="CLEAR">🧹 清除</button>
+      </div>
+      <div class="io-group">
+        <button id="btn-export" class="io-btn">📤 匯出 JSON</button>
+        <button id="btn-import" class="io-btn">📥 匯入 JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;" />
+      </div>
+    </div>
+
+    <!-- 4. 遊戲進行中 HUD 控制面板 -->
+    <div id="game-panel" class="floating-panel game-hud-panel" style="display: none;">
+      <div class="panel-header">
+        <span>🎮 戰鬥進行中</span>
+        <button id="btn-game-back" class="action-btn">🏠 放棄重來</button>
+      </div>
+    </div>
+
+    <!-- 遊戲畫布 -->
+    <canvas id="gameCanvas"></canvas>
     
-    <!-- 確保這行放在 canvas 後面 -->
     <script type="module" src="/src/main.ts"></script>
   </body>
   <style>
     body {
         margin: 0;
         padding: 0;
-        overflow: hidden; /* 防止出現滾動條 */
-        background-color: #1a1a1a; /* 深色背景襯托 Canvas */
+        overflow: hidden;
+        background-color: #080b10;
+        font-family: Consolas, monospace, sans-serif;
     }
     #gameCanvas {
         display: block;
+    }
+
+    /* 主選單全螢幕畫面 */
+    .overlay-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(circle at center, #1e293b 0%, #080b10 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .menu-container {
+        text-align: center;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 40px 60px;
+        border-radius: 16px;
+        border: 1px solid #334155;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+    }
+    .menu-container h1 {
+        color: #f8fafc;
+        margin-bottom: 10px;
+        font-size: 2.2rem;
+        letter-spacing: 2px;
+    }
+    .menu-container p {
+        color: #94a3b8;
+        margin-bottom: 30px;
+        font-size: 1rem;
+    }
+    .menu-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .menu-btn {
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-family: inherit;
+    }
+    .menu-btn.primary {
+        background: #0284c7;
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+    }
+    .menu-btn.primary:hover {
+        background: #0369a1;
+        transform: translateY(-2px);
+    }
+    .menu-btn.secondary {
+        background: #334155;
+        color: #f8fafc;
+    }
+    .menu-btn.secondary:hover {
+        background: #475569;
+        transform: translateY(-2px);
+    }
+
+    /* 浮動控制面板基礎樣式 */
+    .floating-panel {
+        position: fixed;
+        background: rgba(15, 23, 42, 0.92);
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+    }
+
+    /* 關卡編輯器與地圖編輯器面板：固定在左上角 */
+    #level-editor-panel, #map-editor-panel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        bottom: auto;
+        transform: none;
+        width: 250px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+    }
+
+    /* 遊戲進行中面板：維持底部中央 */
+    .game-hud-panel {
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 220px;
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        color: #cbd5e1;
+        font-size: 12px;
+        font-weight: bold;
+        gap: 10px;
+        align-items: center;
+        border-bottom: 1px solid #1e293b;
+        padding-bottom: 6px;
+    }
+    .panel-section-title {
+        font-size: 11px;
+        color: #94a3b8;
+        align-self: flex-start;
+        font-weight: bold;
+        margin-top: 4px;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 100%;
+        font-size: 11px;
+        color: #94a3b8;
+    }
+    .panel-input, .panel-select {
+        background: #1e293b;
+        border: 1px solid #475569;
+        color: #f8fafc;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .panel-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        margin-top: 6px;
+    }
+    .action-btn {
+        background: #475569;
+        color: #f8fafc;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 10px;
+    }
+    .action-btn:hover {
+        background: #64748b;
+    }
+    .brush-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+        width: 100%;
+    }
+    .brush-btn {
+        background: #1e293b;
+        color: #94a3b8;
+        border: 1px solid #475569;
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 11px;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    .brush-btn:hover {
+        background: #334155;
+        color: #f8fafc;
+    }
+    .brush-btn.active {
+        background: #0284c7;
+        color: #ffffff;
+        border-color: #38bdf8;
+        box-shadow: 0 0 8px rgba(2, 132, 199, 0.5);
+    }
+    .brush-btn.spawn-p.active {
+        background: #0369a1;
+        border-color: #38bdf8;
+    }
+    .brush-btn.spawn-e.active {
+        background: #b91c1c;
+        border-color: #f87171;
+    }
+    .io-group {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        justify-content: center;
+        border-top: 1px solid #1e293b;
+        padding-top: 8px;
+        margin-top: 4px;
+    }
+    .io-btn {
+        background: #0f172a;
+        color: #38bdf8;
+        border: 1px solid #0284c7;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        cursor: pointer;
+        font-weight: bold;
+        width: 100%;
+        text-align: center;
+    }
+    .io-btn.primary-io {
+        background: #0284c7;
+        color: #fff;
+    }
+    .io-btn:hover {
+        background: #0369a1;
+        color: #fff;
     }
 </style>
 </html>

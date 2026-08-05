@@ -8,8 +8,8 @@ export class HexRenderer {
     private ctx: CanvasRenderingContext2D;
     private hexSize: number;
     // 讓地圖畫在畫面正中央的偏移量
-    private offsetX: number;
-    private offsetY: number;
+    private offsetX: number = 0;
+    private offsetY: number = 0;
 
     constructor(canvasId: string, hexSize: number = 40) {
         this.canvas = document.getElementById(canvasId) as HTMLCanvasElement;

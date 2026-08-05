@@ -24,7 +24,8 @@ export class IsoHexRenderer {
     public resizeCanvas(): void {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        this.offsetX = this.canvas.width / 2;
+        const panelWidthOffset = 110; // 面板寬度的一半，讓地圖向右微調避免被左側面板遮擋
+        this.offsetX = (this.canvas.width / 2) + panelWidthOffset;
         this.offsetY = this.canvas.height / 2;
     }
 
@@ -65,12 +66,52 @@ export class IsoHexRenderer {
     private drawIsoHex(node: HexNode, isPath: boolean, isReachable: boolean, isAttackable: boolean): void {
         const { px, py } = this.getPixelCoords(node);
 
-        // 定義地形對應的晶塊側面厚度
-        let h = 8; // 平地
-        if (node.terrain === 'FOREST') h = 16;
-        if (node.terrain === 'MOUNTAIN' || !node.isWalkable) h = 32;
+        // 依據地形設定不同柱體厚度 h
+        let h = 8; // PLAIN 平地
+        let sideColor = '#0d131f';
+        let topColor = '#1e293b';
+        let topStroke = '#334155';
+        let labelText = 'Cost 1';
+        let labelColor = '#64748b';
 
-        // 計算頂面 6 個頂點座標 (保持標準正六邊形比例)
+        if (node.terrain === 'FOREST') {
+            h = 12;
+            sideColor = '#0a2e12';
+            topColor = '#1b5e20';
+            topStroke = '#2e7d32';
+            labelText = '森林 (Cost 2)';
+            labelColor = '#a5d6a7';
+        } else if (node.terrain === 'SWAMP') {
+            h = 12;
+            sideColor = '#1f2612';
+            topColor = '#3f4f24';
+            topStroke = '#556b2f';
+            labelText = '沼澤 (Cost 2)';
+            labelColor = '#cddc39';
+        } else if (node.terrain === 'HILLS') {
+            h = 20; // 凸起
+            sideColor = '#4a3525';
+            topColor = '#8d6e63';
+            topStroke = '#a1887f';
+            labelText = '丘陵 (Cost 2)';
+            labelColor = '#d7ccc8';
+        } else if (node.terrain === 'WATER') {
+            h = 2; // 凹陷
+            sideColor = '#023354';
+            topColor = '#0284c7';
+            topStroke = '#38bdf8';
+            labelText = '水域 (需船隻)';
+            labelColor = '#bae6fd';
+        } else if (node.terrain === 'MOUNTAIN' || !node.isWalkable) {
+            h = 32;
+            sideColor = '#1c252b';
+            topColor = '#37474f';
+            topStroke = '#546e7a';
+            labelText = '山脈 (不可通行)';
+            labelColor = '#b0bec5';
+        }
+
+        // 計算頂面 6 個頂點座標
         const topVertices: { x: number, y: number }[] = [];
         for (let i = 0; i < 6; i++) {
             const angle = Math.PI / 180 * (60 * i - 30);
@@ -80,7 +121,7 @@ export class IsoHexRenderer {
             });
         }
 
-        // --- A. 繪製柱體側面 (右下/左下 3 個面，模擬深色陰影) ---
+        // --- A. 繪製柱體側面 ---
         this.ctx.beginPath();
         this.ctx.moveTo(topVertices[1].x, topVertices[1].y);
         this.ctx.lineTo(topVertices[2].x, topVertices[2].y);
@@ -92,13 +133,7 @@ export class IsoHexRenderer {
         this.ctx.lineTo(topVertices[1].x, topVertices[1].y + h);
         this.ctx.closePath();
 
-        if (node.terrain === 'MOUNTAIN' || !node.isWalkable) {
-            this.ctx.fillStyle = '#1c252b';
-        } else if (node.terrain === 'FOREST') {
-            this.ctx.fillStyle = '#0a2e12';
-        } else {
-            this.ctx.fillStyle = '#0d131f';
-        }
+        this.ctx.fillStyle = sideColor;
         this.ctx.fill();
         this.ctx.strokeStyle = '#05070a';
         this.ctx.lineWidth = 1;
@@ -133,18 +168,10 @@ export class IsoHexRenderer {
             this.ctx.lineWidth = 2;
             this.ctx.shadowColor = '#00e676';
             this.ctx.shadowBlur = 10;
-        } else if (node.terrain === 'MOUNTAIN' || !node.isWalkable) {
-            this.ctx.fillStyle = '#37474f';
-            this.ctx.strokeStyle = '#546e7a';
-            this.ctx.lineWidth = 1.5;
-        } else if (node.terrain === 'FOREST') {
-            this.ctx.fillStyle = '#1b5e20';
-            this.ctx.strokeStyle = '#2e7d32';
-            this.ctx.lineWidth = 1.5;
         } else {
-            this.ctx.fillStyle = '#1e293b';
-            this.ctx.strokeStyle = '#334155';
-            this.ctx.lineWidth = 1;
+            this.ctx.fillStyle = topColor;
+            this.ctx.strokeStyle = topStroke;
+            this.ctx.lineWidth = 1.5;
         }
 
         this.ctx.fill();
@@ -159,52 +186,52 @@ export class IsoHexRenderer {
         this.ctx.fillText(`${node.x},${node.y},${node.z}`, px, py - 5);
 
         this.ctx.font = '10px Consolas, monospace';
-        if (node.terrain === 'FOREST') {
-            this.ctx.fillStyle = '#a5d6a7';
-            this.ctx.fillText('森林(Cost 2)', px, py + 8);
-        } else if (node.terrain === 'MOUNTAIN' || !node.isWalkable) {
-            this.ctx.fillStyle = '#b0bec5';
-            this.ctx.fillText('山脈(不可通行)', px, py + 8);
-        } else {
-            this.ctx.fillStyle = '#64748b';
-            this.ctx.fillText('Cost 1', px, py + 8);
+        this.ctx.fillStyle = labelColor;
+        this.ctx.fillText(labelText, px, py + 8);
+
+        // 繪製佈署點標記 (P / E)
+        if (node.spawnPoint) {
+            this.ctx.font = 'bold 11px Consolas, monospace';
+            if (node.spawnPoint === 'PLAYER') {
+                this.ctx.fillStyle = '#38bdf8';
+                this.ctx.fillText('🚩 P 佈署', px, py + 22);
+            } else if (node.spawnPoint === 'ENEMY') {
+                this.ctx.fillStyle = '#f87171';
+                this.ctx.fillText('💀 E 佈署', px, py + 22);
+            }
         }
     }
 
     private drawUnit(unit: Unit): void {
         const { px, py } = this.getPixelCoords(unit.node);
 
-        // 1. 底座陰影 (增加質感)
+        // 1. 底座陰影
         this.ctx.beginPath();
         this.ctx.ellipse(px, py + 14, this.hexSize * 0.42, this.hexSize * 0.2, 0, 0, Math.PI * 2);
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
         this.ctx.fill();
 
-        // 2. 棋子外框 (金屬質感/發光外環)
+        // 2. 棋子外框
         const radius = this.hexSize * 0.45;
         this.ctx.beginPath();
         this.ctx.arc(px, py - 4, radius, 0, Math.PI * 2);
 
-        // 陣營配色 (加入內陰影/漸層視覺)
-        let primaryColor = '#0284c7'; // 我方 - 寶藍
+        let primaryColor = '#0284c7'; // 我方
         let borderColor = '#38bdf8';
 
         if (unit.hasActed) {
-            primaryColor = '#334155'; // 已行動 - 靜態灰
+            primaryColor = '#334155';
             borderColor = '#64748b';
         } else if (unit.faction === 'ENEMY') {
-            primaryColor = '#dc2626'; // 敵方 - 赤紅
+            primaryColor = '#dc2626'; // 敵方
             borderColor = '#f87171';
         } else if (unit.faction === 'NEUTRAL') {
-            primaryColor = '#d97706'; // 中立 - 琥珀黃
+            primaryColor = '#d97706'; // 中立
             borderColor = '#fbbf24';
         }
 
-        // 滿填背景
         this.ctx.fillStyle = primaryColor;
         this.ctx.fill();
-
-        // 雙重加厚金屬邊框
         this.ctx.strokeStyle = borderColor;
         this.ctx.lineWidth = 3;
         this.ctx.stroke();
@@ -213,7 +240,7 @@ export class IsoHexRenderer {
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
-        // 3. 清楚顯眼的職業圖示 (大號加厚繪製)
+        // 3. 職業圖示
         this.ctx.strokeStyle = '#ffffff';
         this.ctx.fillStyle = '#ffffff';
         this.ctx.lineCap = 'round';
@@ -222,35 +249,26 @@ export class IsoHexRenderer {
         const iconY = py - 7;
 
         if (unit.job.name === '劍士') {
-            // 【雙劍交叉】圖示 (更具戰略遊戲感)
             this.ctx.lineWidth = 2.5;
             this.ctx.beginPath();
-            // 第一把劍 (左上到右下)
             this.ctx.moveTo(px - 8, iconY - 8); this.ctx.lineTo(px + 8, iconY + 8);
-            // 第二把劍 (右上到左下)
             this.ctx.moveTo(px + 8, iconY - 8); this.ctx.lineTo(px - 8, iconY + 8);
             this.ctx.stroke();
 
-            // 護手圓點
             this.ctx.beginPath();
             this.ctx.arc(px - 4, iconY - 4, 1.5, 0, Math.PI * 2);
             this.ctx.arc(px + 4, iconY - 4, 1.5, 0, Math.PI * 2);
             this.ctx.fill();
-
         } else if (unit.job.name === '弓箭手') {
-            // 【拉滿的巨弓與箭矢】
             this.ctx.lineWidth = 2.5;
             this.ctx.beginPath();
-            // 弧形大弓
             this.ctx.arc(px + 3, iconY, 8, Math.PI * 0.6, Math.PI * 1.4, false);
             this.ctx.stroke();
 
-            // 直線弓弦
             this.ctx.lineWidth = 1.5;
             this.ctx.beginPath();
             this.ctx.moveTo(px + 1, iconY - 7.5);
             this.ctx.lineTo(px + 1, iconY + 7.5);
-            // 搭在弓上的箭矢 (加上箭頭)
             this.ctx.moveTo(px - 6, iconY);
             this.ctx.lineTo(px + 8, iconY);
             this.ctx.lineTo(px + 5, iconY - 3);
@@ -259,7 +277,7 @@ export class IsoHexRenderer {
             this.ctx.stroke();
         }
 
-        // 4. 單位名稱標籤 (文字加上黑色背景框，提升閱讀性)
+        // 4. 單位名稱標籤
         const tagY = py + 11;
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         this.ctx.fillRect(px - 14, tagY - 7, 28, 13);
@@ -270,26 +288,25 @@ export class IsoHexRenderer {
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(unit.id, px, tagY);
 
-        // 5. 高質感條狀血條/藍條 (加上 1px 黑色外框)
+        // 5. 血條 / 藍條
         const barW = 42;
         const barX = px - barW / 2;
         const barY = py + 22;
 
-        // 血條底色與外框
         this.ctx.fillStyle = '#0f172a';
         this.ctx.fillRect(barX - 1, barY - 1, barW + 2, 6);
-        this.ctx.fillStyle = '#15803d'; // 暗綠底
+        this.ctx.fillStyle = '#15803d';
         this.ctx.fillRect(barX, barY, barW, 4);
-        this.ctx.fillStyle = '#22c55e'; // 亮綠血量
+        this.ctx.fillStyle = '#22c55e';
         this.ctx.fillRect(barX, barY, (unit.hp / unit.maxHp) * barW, 4);
 
-        // 藍條底色與外框
+        const mpBarY = barY + 5;
         this.ctx.fillStyle = '#0f172a';
-        this.ctx.fillRect(barX - 1, barY + 5, barW + 2, 5);
-        this.ctx.fillStyle = '#0369a1'; // 暗藍底
-        this.ctx.fillRect(barX, barY + 6, barW, 3);
-        this.ctx.fillStyle = '#38bdf8'; // 亮藍 MP
-        this.ctx.fillRect(barX, barY + 6, (unit.mp / unit.maxMp) * barW, 3);
+        this.ctx.fillRect(barX - 1, mpBarY, barW + 2, 5);
+        this.ctx.fillStyle = '#0369a1';
+        this.ctx.fillRect(barX, mpBarY + 1, barW, 3);
+        this.ctx.fillStyle = '#38bdf8';
+        this.ctx.fillRect(barX, mpBarY + 1, (unit.mp / unit.maxMp) * barW, 3);
     }
 
     public pixelToHex(mouseX: number, mouseY: number): { x: number, y: number, z: number } {
