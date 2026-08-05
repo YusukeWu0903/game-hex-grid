@@ -3,6 +3,7 @@ import { GameState } from './GameState';
 import { Unit } from '../entities/Unit';
 import { HexGrid } from '../HexGrid';
 import { SimpleAI } from './SimpleAI';
+import { HexNode } from '../HexNode';
 
 export class GameManager {
     public state: GameState = GameState.INIT;
@@ -10,87 +11,67 @@ export class GameManager {
     public units: Unit[] = [];
     private grid: HexGrid | null = null;
 
-    // 新增：當狀態改變或資料更新時觸發的繪圖通知
+    // 當狀態改變或資料更新時觸發的繪圖通知
     public onRenderNeeded?: () => void;
+
+    // 當回合階段切換時觸發的動畫通知 (PLAYER / ENEMY / NEUTRAL)
+    public onPhaseChange?: (phase: 'PLAYER' | 'ENEMY' | 'NEUTRAL') => void;
+
+    // 敵方單位平滑移動動畫回調
+    public onAnimateMovement?: (unit: Unit, path: HexNode[], onComplete: () => void) => void;
     
-    // 新增傳入 grid 引用以利 AI 尋路
     public setGrid(grid: HexGrid) {
         this.grid = grid;
     }
 
-    // 將單位加入遊戲
     public addUnit(unit: Unit) {
         this.units.push(unit);
     }
 
-    // 啟動遊戲迴圈
     public startGame() {
         console.log("=== 遊戲系統初始化 ===");
         this.changeState(GameState.TURN_START);
     }
 
-    // 推進狀態機的核心邏輯
     private processState() {
         switch (this.state) {
             case GameState.TURN_START:
                 console.log(`=== 第 ${this.turnCount} 回合 開始 ===`);
-                // 將場上所有單位的行動狀態重置
                 this.units.forEach(u => u.resetAction());
 
-                // 通知畫面重新渲染 (讓角色從灰色恢復為藍色)
                 if (this.onRenderNeeded) this.onRenderNeeded();
 
-                // 自動進入玩家回合
+                // 觸發「我方回合」過場動畫 (新回合開始時只播一次)
+                if (this.onPhaseChange) this.onPhaseChange('PLAYER');
+
                 this.changeState(GameState.PLAYER_PHASE);
                 break;
 
             case GameState.PLAYER_PHASE:
                 console.log("等待玩家操作...");
-                // 這裡會停住，等待 main.ts 傳遞滑鼠點擊事件進來
                 break;
             
             case GameState.ENEMY_PHASE:
                 console.log("敵方回合 (AI 思考與行動中...)");
-                setTimeout(() => {
-                    if (this.grid) {
-                        const enemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
-                        
-                        enemyUnits.forEach(enemy => {
-                            if (this.state === GameState.GAME_OVER) return;
-                            SimpleAI.executeTurn(this.grid!, enemy, this.units);
-                            this.checkWinLossCondition();
-                        });
-
-                        this.units = this.units.filter(u => u.hp > 0);
-                    }
-
-                    if (this.onRenderNeeded) this.onRenderNeeded();
-
-                    // 關鍵修改：敵方結束後，改進入第三方回合
-                    if (this.state !== GameState.GAME_OVER) {
-                        this.changeState(GameState.NEUTRAL_PHASE);
-                    }
-                }, 800);
+                if (this.onPhaseChange) this.onPhaseChange('ENEMY');
+                this.executeEnemyPhaseAsync();
                 break;
 
             case GameState.NEUTRAL_PHASE:
                 console.log("第三方勢力回合...");
+                if (this.onPhaseChange) this.onPhaseChange('NEUTRAL');
                 setTimeout(() => {
                     if (this.grid) {
                         const neutralUnits = this.units.filter(u => u.faction === 'NEUTRAL' && u.hp > 0);
-                        
                         neutralUnits.forEach(_neutral => {
                             if (this.state === GameState.GAME_OVER) return;
-                            // 未來可以在此處掛載 SimpleAI 或獨立的中立 AI 邏輯
                             this.checkWinLossCondition();
                         });
-
                         this.units = this.units.filter(u => u.hp > 0);
                     }
 
                     if (this.onRenderNeeded) this.onRenderNeeded();
 
-                    // 第三方結束後，才進入回合結算
                     if (this.state !== GameState.GAME_OVER) {
                         this.changeState(GameState.TURN_END);
                     }
@@ -100,19 +81,66 @@ export class GameManager {
             case GameState.TURN_END:
                 console.log(`=== 第 ${this.turnCount} 回合 結束 ===`);
                 this.turnCount++;
-                // 進入下一個回合
                 this.changeState(GameState.TURN_START);
                 break;
         }
     }
 
-    // 改變狀態的統一入口
+    private async executeEnemyPhaseAsync() {
+        if (!this.grid) return;
+        const enemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
+
+        for (const enemy of enemyUnits) {
+            if (this.state === GameState.GAME_OVER) break;
+
+            const aiPlan = SimpleAI.executeTurnPlan(this.grid, enemy, this.units);
+
+            // 如果有移動路徑，呼叫動畫回調讓敵方單位沿著格子平滑移動
+            if (aiPlan.path.length > 0 && this.onAnimateMovement) {
+                await new Promise<void>((resolve) => {
+                    this.onAnimateMovement!(enemy, aiPlan.path, resolve);
+                });
+            } else if (aiPlan.path.length > 0) {
+                // 若無動畫回調則直接瞬移到終點
+                enemy.node = aiPlan.path[aiPlan.path.length - 1];
+            }
+
+            // 執行攻擊
+            if (aiPlan.targetToAttack) {
+                const damage = 3;
+                const isDead = aiPlan.targetToAttack.takeDamage(damage);
+                console.log(`🤖 AI 敵方 ${enemy.id} 攻擊了我方 ${aiPlan.targetToAttack.id}！造成 ${damage} 點傷害。`);
+                if (isDead) {
+                    console.log(`💀 我方單位 ${aiPlan.targetToAttack.id} 陣亡了！`);
+                }
+            }
+
+            enemy.hasActed = true;
+            this.checkWinLossCondition();
+            if (this.onRenderNeeded) this.onRenderNeeded();
+
+            // 每個敵人行動之間的間隔
+            await new Promise(r => setTimeout(r, 400));
+        }
+
+        this.units = this.units.filter(u => u.hp > 0);
+        if (this.onRenderNeeded) this.onRenderNeeded();
+
+        if (this.state !== GameState.GAME_OVER) {
+            const hasNeutral = this.units.some(u => u.faction === 'NEUTRAL' && u.hp > 0);
+            if (hasNeutral) {
+                this.changeState(GameState.NEUTRAL_PHASE);
+            } else {
+                this.changeState(GameState.TURN_END);
+            }
+        }
+    }
+
     public changeState(newState: GameState) {
         this.state = newState;
         this.processState();
     }
 
-    // 檢查勝負條件
     public checkWinLossCondition(): boolean {
         const alivePlayerUnits = this.units.filter(u => u.faction === 'PLAYER' && u.hp > 0);
         const aliveEnemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
@@ -132,9 +160,7 @@ export class GameManager {
         return false;
     }
 
-    // 檢查是否所有我方單位都已行動完畢
     public checkPlayerTurnEnd() {
-        // 關鍵修正：在檢查回合結束前，必須先判斷敵人是否已被全滅！
         if (this.checkWinLossCondition()) return;
 
         const playerUnits = this.units.filter(u => u.faction === 'PLAYER' && u.hp > 0);
@@ -144,7 +170,6 @@ export class GameManager {
             console.log("我方全員行動完畢，回合交接！");
             this.changeState(GameState.ENEMY_PHASE);
         } else {
-            // 退回等待操作狀態
             this.changeState(GameState.PLAYER_PHASE);
         }
     }

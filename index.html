@@ -21,7 +21,7 @@
     <!-- 2. 關卡編輯器面板 (Level Editor Panel) - 頂層入口 -->
     <div id="level-editor-panel" class="floating-panel" style="display: none;">
       <div class="panel-header">
-        <span>📋 關卡編輯器 (Level Editor)</span>
+        <span>📋 關卡編輯器</span>
         <button id="btn-level-back-menu" class="action-btn">🏠 返回主選單</button>
       </div>
       <div class="form-group">
@@ -34,6 +34,21 @@
           <!-- 動態載入已儲存的地圖 -->
         </select>
       </div>
+
+      <!-- 我方出戰單位表 -->
+      <div class="panel-section-title">我方出戰單位 (Player Roster)</div>
+      <div id="player-roster-list" class="roster-list-container">
+        <!-- 動態產生 -->
+      </div>
+      <button id="btn-add-player-unit" class="io-btn" style="margin-bottom: 6px; width: 100%;">+ 新增我方單位</button>
+
+      <!-- 敵方出戰單位表 -->
+      <div class="panel-section-title">敵方出戰單位 (Enemy Roster)</div>
+      <div id="enemy-roster-list" class="roster-list-container">
+        <!-- 動態產生 -->
+      </div>
+      <button id="btn-add-enemy-unit" class="io-btn" style="margin-bottom: 8px; width: 100%;">+ 新增敵方單位</button>
+
       <div class="form-group">
         <label>勝利條件</label>
         <select id="select-win-cond" class="panel-select">
@@ -57,7 +72,7 @@
     <!-- 3. 地圖編輯器面板 (Map Editor Panel) - 子模組 -->
     <div id="map-editor-panel" class="floating-panel" style="display: none;">
       <div class="panel-header">
-        <span>🗺️ 地圖編輯器 (<span id="editing-map-name">map_tutorial</span>)</span>
+        <span>🗺️ 地圖編輯器 (<span id="editing-map-name"></span>)</span>
         <button id="btn-back-level-editor" class="action-btn">↩️ 儲存並返回</button>
       </div>
       <div class="panel-section-title">地形筆刷</div>
@@ -76,8 +91,8 @@
         <button class="brush-btn spawn-clear" data-spawn="CLEAR">🧹 清除</button>
       </div>
       <div class="io-group">
-        <button id="btn-export" class="io-btn">📤 匯出 JSON</button>
-        <button id="btn-import" class="io-btn">📥 匯入 JSON</button>
+        <button id="btn-export" class="io-btn">📤 匯出</button>
+        <button id="btn-import" class="io-btn">📥 匯入</button>
         <input type="file" id="import-file" accept=".json" style="display: none;" />
       </div>
     </div>
@@ -86,9 +101,12 @@
     <div id="game-panel" class="floating-panel game-hud-panel" style="display: none;">
       <div class="panel-header">
         <span>🎮 戰鬥進行中</span>
-        <button id="btn-game-back" class="action-btn">🏠 放棄重來</button>
+        <button id="btn-game-back" class="action-btn">🏠 放棄</button>
       </div>
     </div>
+
+    <!-- 回合切換過場動畫橫幅 -->
+    <div id="turn-banner"></div>
 
     <!-- 遊戲畫布 -->
     <canvas id="gameCanvas"></canvas>
@@ -107,6 +125,39 @@
         display: block;
     }
 
+    /* 回合切換過場動畫橫幅 */
+    #turn-banner {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 18px 48px;
+        font-size: 2.2rem;
+        font-weight: bold;
+        font-family: Consolas, monospace, sans-serif;
+        letter-spacing: 4px;
+        background: rgba(8, 11, 16, 0.88);
+        border: 2px solid #38bdf8;
+        border-radius: 14px;
+        color: #38bdf8;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 500;
+        text-shadow: 0 0 18px currentColor;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.7), 0 0 24px currentColor;
+        transition: opacity 0.3s ease;
+    }
+    #turn-banner.show {
+        animation: bannerInOut 2s ease forwards;
+    }
+    @keyframes bannerInOut {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+        12%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+        22%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        85%  { opacity: 1; }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+    }
+
     /* 主選單全螢幕畫面 */
     .overlay-screen {
         position: fixed;
@@ -116,16 +167,17 @@
         height: 100vh;
         background: radial-gradient(circle at center, #1e293b 0%, #080b10 100%);
         display: flex;
-        justify-content: center;
         align-items: center;
+        justify-content: center;
         z-index: 1000;
     }
     .menu-container {
         text-align: center;
-        background: rgba(15, 23, 42, 0.85);
+        color: #f8fafc;
         padding: 40px 60px;
-        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.85);
         border: 1px solid #334155;
+        border-radius: 16px;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
     }
     .menu-container h1 {
@@ -174,7 +226,12 @@
 
     /* 浮動控制面板基礎樣式 */
     .floating-panel {
-        position: fixed;
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 250px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
         background: rgba(15, 23, 42, 0.92);
         padding: 14px;
         border-radius: 12px;
@@ -184,27 +241,6 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-        align-items: center;
-    }
-
-    /* 關卡編輯器與地圖編輯器面板：固定在左上角 */
-    #level-editor-panel, #map-editor-panel {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        bottom: auto;
-        transform: none;
-        width: 250px;
-        max-height: calc(100vh - 40px);
-        overflow-y: auto;
-    }
-
-    /* 遊戲進行中面板：維持底部中央 */
-    .game-hud-panel {
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 220px;
     }
 
     .panel-header {
@@ -212,19 +248,23 @@
         justify-content: space-between;
         width: 100%;
         color: #cbd5e1;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: bold;
-        gap: 10px;
         align-items: center;
         border-bottom: 1px solid #1e293b;
         padding-bottom: 6px;
     }
-    .panel-section-title {
+    .action-btn {
+        background: #475569;
+        color: #f8fafc;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
         font-size: 11px;
-        color: #94a3b8;
-        align-self: flex-start;
-        font-weight: bold;
-        margin-top: 4px;
+    }
+    .action-btn:hover {
+        background: #64748b;
     }
     .form-group {
         display: flex;
@@ -233,6 +273,9 @@
         width: 100%;
         font-size: 11px;
         color: #94a3b8;
+    }
+    .form-group label {
+        font-weight: bold;
     }
     .panel-input, .panel-select {
         background: #1e293b;
@@ -245,24 +288,44 @@
         width: 100%;
         box-sizing: border-box;
     }
-    .panel-actions {
+    .panel-section-title {
+        font-size: 11px;
+        color: #38bdf8;
+        font-weight: bold;
+        margin-top: 4px;
+    }
+    .roster-list-container {
         display: flex;
         flex-direction: column;
         gap: 6px;
         width: 100%;
-        margin-top: 6px;
+        max-height: 110px;
+        overflow-y: auto;
     }
-    .action-btn {
-        background: #475569;
-        color: #f8fafc;
-        border: none;
-        padding: 4px 8px;
+    .roster-item {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        width: 100%;
+    }
+    .roster-item select {
+        flex: 1;
+        padding: 4px;
+        background: #1e293b;
+        color: #fff;
+        border: 1px solid #475569;
         border-radius: 4px;
+        font-size: 11px;
+        font-family: inherit;
+    }
+    .roster-del-btn {
+        background: #ef4444;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 6px;
         cursor: pointer;
         font-size: 10px;
-    }
-    .action-btn:hover {
-        background: #64748b;
     }
     .brush-group {
         display: grid;
@@ -290,7 +353,6 @@
         background: #0284c7;
         color: #ffffff;
         border-color: #38bdf8;
-        box-shadow: 0 0 8px rgba(2, 132, 199, 0.5);
     }
     .brush-btn.spawn-p.active {
         background: #0369a1;
@@ -299,6 +361,10 @@
     .brush-btn.spawn-e.active {
         background: #b91c1c;
         border-color: #f87171;
+    }
+    .brush-btn.spawn-clear.active {
+        background: #475569;
+        border-color: #94a3b8;
     }
     .io-group {
         display: flex;
@@ -321,13 +387,23 @@
         width: 100%;
         text-align: center;
     }
+    .io-btn:hover {
+        background: #0284c7;
+        color: #fff;
+    }
     .io-btn.primary-io {
         background: #0284c7;
         color: #fff;
     }
-    .io-btn:hover {
+    .io-btn.primary-io:hover {
         background: #0369a1;
-        color: #fff;
     }
-</style>
+    .panel-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        margin-top: 6px;
+    }
+  </style>
 </html>

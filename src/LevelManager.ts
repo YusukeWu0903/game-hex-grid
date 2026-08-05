@@ -6,36 +6,21 @@ export class LevelManager {
     private static MAP_REGISTRY_KEY = 'TACTICS_MAP_REGISTRY';
     private static LEVEL_REGISTRY_KEY = 'TACTICS_LEVEL_REGISTRY';
 
-    public static getDefaultTestLevel(): { map: MapData, level: LevelData } {
-        const map: MapData = {
-            mapId: 'map_tutorial',
-            name: '新手演練場',
+    // 建立一張乾淨的預設地圖 (供編輯器起始使用，不屬於任何關卡)
+    public static createDefaultMap(): MapData {
+        const mapData: MapData = {
+            mapId: 'map_default',
+            name: '預設地圖',
             radius: 4,
-            terrains: {
-                "1,0,-1": "FOREST",
-                "-1,0,1": "FOREST",
-                "0,2,-2": "MOUNTAIN"
-            },
+            terrains: {},
             spawnPoints: {
                 "0,0,0": "PLAYER",
                 "-1,0,1": "PLAYER",
                 "2,-1,-1": "ENEMY"
             }
         };
-
-        const level: LevelData = {
-            levelId: 'level_01',
-            name: '關卡 1：遭遇戰',
-            mapId: 'map_tutorial',
-            winCondition: 'ANNIHILATION',
-            loseCondition: 'PLAYER_DEATH',
-            enemyRoster: [
-                { enemyId: 'enemy_swordsman_base', x: 2, y: -1, z: -1 },
-                { enemyId: 'enemy_archer_base', x: 1, y: -2, z: 1 }
-            ]
-        };
-
-        return { map, level };
+        localStorage.setItem(this.MAP_REGISTRY_KEY, JSON.stringify([mapData]));
+        return mapData;
     }
 
     // 地圖存取
@@ -68,14 +53,13 @@ export class LevelManager {
     public static getSavedMaps(): MapData[] {
         const data = localStorage.getItem(this.MAP_REGISTRY_KEY);
         if (!data) {
-            const { map } = this.getDefaultTestLevel();
-            return [map];
+            return [this.createDefaultMap()];
         }
         try {
-            return JSON.parse(data);
+            const maps = JSON.parse(data);
+            return Array.isArray(maps) ? maps : [];
         } catch (e) {
-            const { map } = this.getDefaultTestLevel();
-            return [map];
+            return [this.createDefaultMap()];
         }
     }
 
@@ -99,14 +83,13 @@ export class LevelManager {
     public static getSavedLevels(): LevelData[] {
         const data = localStorage.getItem(this.LEVEL_REGISTRY_KEY);
         if (!data) {
-            const { level } = this.getDefaultTestLevel();
-            return [level];
+            return [];
         }
         try {
-            return JSON.parse(data);
+            const levels = JSON.parse(data);
+            return Array.isArray(levels) ? levels : [];
         } catch (e) {
-            const { level } = this.getDefaultTestLevel();
-            return [level];
+            return [];
         }
     }
 

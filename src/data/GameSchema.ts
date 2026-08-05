@@ -25,10 +25,14 @@ export interface LevelData {
     mapId: string;
     winCondition: string;
     loseCondition: string;
+    playerRoster: {
+        jobKey: string;
+        name?: string;
+    }[];
     enemyRoster: {
         enemyId: string;
-        x: number;
-        y: number;
-        z: number;
+        x?: number;
+        y?: number;
+        z?: number;
     }[];
 }
