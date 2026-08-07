@@ -25,25 +25,47 @@ export class GameManager {
 
     // 單位受傷飄字回調
     public onUnitDamaged?: (unit: Unit, damage: number) => void;
-    
+
+    private logUnits(context: string): void {
+        console.log(`🔍 [GameManager Units] ${context} | 總數: ${this.units.length}`,
+            this.units.map(u => `${u.id}(HP:${u.hp}/${u.maxHp}, Faction:${u.faction}, Node:${u.node.toString()}, acted:${u.hasActed})`).join(', ')
+        );
+    }
+
     public setGrid(grid: HexGrid) {
         this.grid = grid;
     }
 
     public addUnit(unit: Unit) {
-        this.units.push(unit);
+            if (unit.hp <= 0) {
+                console.warn(`⚠️ [GameManager] addUnit 拒絕血量 ≤ 0 的單位: ${unit.id} (HP:${unit.hp})`);
+                return;
+            }
+            this.units.push(unit);
+            console.log(`➕ [GameManager] addUnit: ${unit.id} (HP:${unit.hp}, Faction:${unit.faction}) 於 ${unit.node.toString()}`);
+            this.logUnits('addUnit 後');
     }
 
     public startGame() {
         console.log("=== 遊戲系統初始化 ===");
+        this.logUnits('startGame 初始化');
         this.changeState(GameState.TURN_START);
     }
 
     private processState() {
         switch (this.state) {
             case GameState.TURN_START:
-                console.log(`=== 第 ${this.turnCount} 回合 開始 ===`);
-                this.units.forEach(u => u.resetAction());
+                            console.log(`=== 第 ${this.turnCount} 回合 開始 ===`);
+                            this.logUnits('TURN_START');
+                            // 回合開始前保險：過濾掉所有 HP ≤ 0 的單位，確保玩家不會操縱到陣亡單位
+                            const beforeTs = this.units.length;
+                            this.units = this.units.filter(u => u.hp > 0);
+                            const removedTs = beforeTs - this.units.length;
+                            if (removedTs > 0) {
+                                console.warn(`⚠️ [TURN_START] 保險過濾移除了 ${removedTs} 個 HP ≤ 0 的單位`);
+                                this.logUnits('TURN_START 過濾後');
+                            }
+                            this.units.forEach(u => u.resetAction());
 
                 if (this.onRenderNeeded) this.onRenderNeeded();
 
@@ -54,11 +76,12 @@ export class GameManager {
                 break;
 
             case GameState.PLAYER_PHASE:
-                console.log("等待玩家操作...");
+                this.logUnits('PLAYER_PHASE 等待玩家操作');
                 break;
             
             case GameState.ENEMY_PHASE:
                 console.log("敵方回合 (AI 思考與行動中...)");
+                this.logUnits('ENEMY_PHASE 開始');
                 if (this.onPhaseChange) this.onPhaseChange('ENEMY');
                 this.executeEnemyPhaseAsync();
                 break;
@@ -73,7 +96,13 @@ export class GameManager {
                             if (this.state === GameState.GAME_OVER) return;
                             this.checkWinLossCondition();
                         });
+                        const beforeFilter = this.units.length;
                         this.units = this.units.filter(u => u.hp > 0);
+                        const removed = beforeFilter - this.units.length;
+                        if (removed > 0) {
+                            console.warn(`⚠️ [NEUTRAL_PHASE] 過濾移除了 ${removed} 個死亡單位`);
+                            this.logUnits('NEUTRAL_PHASE 過濾後');
+                        }
                     }
 
                     if (this.onRenderNeeded) this.onRenderNeeded();
@@ -86,6 +115,7 @@ export class GameManager {
 
             case GameState.TURN_END:
                 console.log(`=== 第 ${this.turnCount} 回合 結束 ===`);
+                this.logUnits('TURN_END');
                 this.turnCount++;
                 this.changeState(GameState.TURN_START);
                 break;
@@ -95,11 +125,14 @@ export class GameManager {
     private async executeEnemyPhaseAsync() {
         if (!this.grid) return;
         const enemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
+        console.log(`🤖 [ENEMY_PHASE] 有 ${enemyUnits.length} 個敵方單位要行動`);
+        this.logUnits('ENEMY_PHASE 執行前');
 
         for (const enemy of enemyUnits) {
             if (this.state === GameState.GAME_OVER) break;
 
             const aiPlan = SimpleAI.executeTurnPlan(this.grid, enemy, this.units);
+            console.log(`  🤖 敵方 ${enemy.id} AI 計畫: 路徑長度=${aiPlan.path.length}, 攻擊目標=${aiPlan.targetToAttack?.id || '無'}`);
 
             // 如果有移動路徑，呼叫動畫回調讓敵方單位沿著格子平滑移動
             if (aiPlan.path.length > 0 && this.onAnimateMovement) {
@@ -114,7 +147,9 @@ export class GameManager {
             // 執行攻擊
             if (aiPlan.targetToAttack) {
                 const damage = 3;
+                console.log(`  ⚔️ 敵方 ${enemy.id} 攻擊目標 ${aiPlan.targetToAttack.id} (攻擊前HP:${aiPlan.targetToAttack.hp})`);
                 const isDead = aiPlan.targetToAttack.takeDamage(damage);
+                console.log(`  ➡️ 攻擊後 ${aiPlan.targetToAttack.id} HP: ${aiPlan.targetToAttack.hp}${isDead ? ' 💀已陣亡' : ''}`);
                 if (this.onUnitDamaged) {
                     this.onUnitDamaged(aiPlan.targetToAttack, damage);
                 }
@@ -132,7 +167,14 @@ export class GameManager {
             await new Promise(r => setTimeout(r, 400));
         }
 
+        const beforeFilter = this.units.length;
         this.units = this.units.filter(u => u.hp > 0);
+        const removed = beforeFilter - this.units.length;
+        if (removed > 0) {
+            console.warn(`⚠️ [ENEMY_PHASE] 回合結束過濾移除了 ${removed} 個死亡單位`);
+            this.logUnits('ENEMY_PHASE 過濾後');
+        }
+
         if (this.onRenderNeeded) this.onRenderNeeded();
 
         if (this.state !== GameState.GAME_OVER) {
@@ -146,6 +188,7 @@ export class GameManager {
     }
 
     public changeState(newState: GameState) {
+        console.log(`🔄 [GameManager] State 變更: ${this.state} -> ${newState}`);
         this.state = newState;
         this.processState();
     }
@@ -153,6 +196,8 @@ export class GameManager {
     public checkWinLossCondition(): boolean {
             const alivePlayerUnits = this.units.filter(u => u.faction === 'PLAYER' && u.hp > 0);
             const aliveEnemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
+
+            console.log(`🔍 [checkWinLoss] 存活玩家: ${alivePlayerUnits.length}, 存活敵方: ${aliveEnemyUnits.length}`);
 
             if (aliveEnemyUnits.length === 0) {
                 console.log("🎉🎉🎉【 VICTORY 】全數敵方單位已被擊敗！玩家獲勝！🎉🎉🎉");
@@ -176,6 +221,8 @@ export class GameManager {
 
         const playerUnits = this.units.filter(u => u.faction === 'PLAYER' && u.hp > 0);
         const allActed = playerUnits.every(u => u.hasActed);
+        
+        console.log(`🔍 [checkPlayerTurnEnd] 玩家單位: ${playerUnits.length} 個, 全部已行動: ${allActed}`);
         
         if (allActed) {
             console.log("我方全員行動完畢，回合交接！");

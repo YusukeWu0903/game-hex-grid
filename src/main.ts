@@ -13,6 +13,9 @@ import { EnemyRegistry } from './data/EnemyRegistry';
 import { PlayerPartyManager } from './data/PlayerParty';
 import { PlayerProfileManager } from './core/PlayerProfile';
 import type { LevelData } from './data/GameSchema';
+import { AudioManager } from './core/AudioManager';
+import { JuiceEffects } from './core/JuiceEffects';
+import gsap from 'gsap';
 
 // ==========================================
 // 1. 初始化系統與狀態
@@ -49,6 +52,19 @@ const deploymentPanel = document.getElementById('deployment-panel') as HTMLEleme
 const resultPanel = document.getElementById('result-panel') as HTMLElement;
 const editingMapNameSpan = document.getElementById('editing-map-name') as HTMLElement;
 const selectMapBind = document.getElementById('select-map-bind') as HTMLSelectElement;
+const currentMapFilenameSpan = document.getElementById('current-map-filename') as HTMLElement;
+
+function updateMapFilenameDisplay() {
+    if (currentMapFilenameSpan) {
+        const mapId = selectMapBind?.value || currentEditingMapId || 'map_default';
+        currentMapFilenameSpan.textContent = `${mapId}.json`;
+    }
+}
+
+selectMapBind?.addEventListener('change', () => {
+    currentEditingMapId = selectMapBind.value;
+    updateMapFilenameDisplay();
+});
 
 let activeBrushType: 'TERRAIN' | 'SPAWN' = 'TERRAIN';
 let activeTerrain: TerrainType = 'PLAIN';
@@ -85,8 +101,11 @@ function updateRanges() {
     if (currentMode !== 'BATTLE' || !selectedUnit || selectedUnit.hasActed) return;
 
     if (actionMode === 'MOVE') {
-        reachableNodes = Pathfinder.getReachableNodes(grid, selectedUnit.node, selectedUnit.job.maxMovement);
-    } else if (actionMode === 'ATTACK') {
+            const occupiedNodes = currentMode === 'BATTLE' && gameManager.units
+                ? gameManager.units.filter(u => u !== selectedUnit).map(u => u.node)
+                : [];
+            reachableNodes = Pathfinder.getReachableNodes(grid, selectedUnit.node, selectedUnit.job.maxMovement, occupiedNodes);
+        } else if (actionMode === 'ATTACK') {
         const minR = selectedSkill ? selectedSkill.rangeMin : selectedUnit.job.attackRangeMin;
         const maxR = selectedSkill ? selectedSkill.rangeMax : selectedUnit.job.attackRangeMax;
 
@@ -106,6 +125,16 @@ function renderGame() {
         // 佈署階段：顯示地圖、出生點、已佈署單位、可用單位清單
         renderer.render(grid, [], [], Array.from(deployedUnits.values()), []);
     } else if (currentMode === 'BATTLE') {
+        // Debug: 單位清單快照 (每回合印一次)
+        const prevCount = (window as any).__lastUnitCount;
+        const currentCount = gameManager.units.length;
+        if (prevCount !== currentCount) {
+            console.log(`📊 [Debug Render] 單位數量變更: ${prevCount ?? '?'} -> ${currentCount}`,
+                gameManager.units.map(u => `${u.id}(HP:${u.hp}/${u.maxHp}, Faction:${u.faction})`).join(', ')
+            );
+            (window as any).__lastUnitCount = currentCount;
+        }
+
         renderer.render(grid, currentPath, reachableNodes, gameManager.units, attackableNodes);
 
         const stateTextMap: Record<string, string> = {
@@ -162,6 +191,8 @@ gameManager.onPhaseChange = (phase) => {
 
 gameManager.onUnitDamaged = (unit, damage) => {
     renderer.addFloatingText(unit.node, `-${damage}`, '#ff1744');
+    AudioManager.playHit();
+    JuiceEffects.shakeCanvas(canvas);
     renderGame();
 };
 
@@ -169,6 +200,10 @@ gameManager.onGameOver = (isVictory) => {
     currentMode = 'RESULT';
     gamePanel.style.display = 'none';
     resultPanel.style.display = 'flex';
+
+    if (isVictory) {
+        AudioManager.playVictory();
+    }
 
     const resultTitle = document.getElementById('result-title');
     const resultMessage = document.getElementById('result-message');
@@ -212,13 +247,21 @@ function renderDeploymentUnitList() {
     if (!listDiv) return;
 
     const profile = PlayerProfileManager.getProfile();
-    // 過濾出未佈署的單位
+    // 過濾出未佈署且 HP > 0 的單位（陣亡單位不可佈署）
     const availableUnits = profile.roster.filter(member => 
+        member.currentHp > 0 &&
         !Array.from(deployedUnits.values()).some(u => u.id === member.unitId)
     );
 
+    // 列出已被過濾掉的陣亡單位數量（供除錯參考）
+    const deadUnits = profile.roster.filter(m => m.currentHp <= 0);
+    if (deadUnits.length > 0) {
+        console.warn(`⚠️ [Deployment] 過濾掉 ${deadUnits.length} 個 HP ≤ 0 的陣亡單位:`, deadUnits.map(d => `${d.customName || d.jobKey}(HP:${d.currentHp})`));
+    }
+
     if (availableUnits.length === 0) {
-        listDiv.innerHTML = '<div style="color: #64748b; font-size: 11px; text-align: center; padding: 8px;">所有單位已佈署完畢</div>';
+        listDiv.innerHTML = '<div style="color: #64748b; font-size: 11px; text-align: center; padding: 8px;">所有單位已佈署完畢</div>' +
+            (deadUnits.length > 0 ? '<div style="color: #f87171; font-size: 10px; text-align: center; padding: 4px; margin-top: 4px;">⚠️ 有 ' + deadUnits.length + ' 個陣亡單位無法出戰</div>' : '');
         return;
     }
 
@@ -392,6 +435,7 @@ function updateMapSelectDropdown() {
         if (m.mapId === currentEditingMapId) opt.selected = true;
         selectMapBind.appendChild(opt);
     });
+    updateMapFilenameDisplay();
 }
 
 // ==========================================
@@ -610,10 +654,24 @@ function startDeploymentMode(level: LevelData) {
     actionMode = 'MOVE';
 
     // 存儲當前關卡資料供後續使用
-    currentLevelData = level;
+        currentLevelData = level;
 
-    // 新增：在初始化完成時渲染一次單位清單 UI
-    renderDeploymentUnitList();
+        // 戰前恢復：將全域隊伍表中所有單位血量補滿至 maxHp
+        const profile = PlayerProfileManager.getProfile();
+        profile.roster.forEach(member => {
+            if (member.currentHp < member.maxHp || member.currentMp < member.maxMp) {
+                const oldHp = member.currentHp;
+                const oldMp = member.currentMp;
+                member.currentHp = member.maxHp;
+                member.currentMp = member.maxMp;
+                console.log(`💖 [戰前恢復] ${member.customName || member.jobKey}: HP ${oldHp}/${member.maxHp} → ${member.currentHp}/${member.maxHp}, MP ${oldMp}/${member.maxMp} → ${member.currentMp}/${member.maxMp}`);
+            }
+        });
+        // 持久化
+        localStorage.setItem('TACTICS_PLAYER_PROFILE', JSON.stringify(profile));
+
+        // 新增：在初始化完成時渲染一次單位清單 UI
+        renderDeploymentUnitList();
 
     renderGame();
     console.log(`📋 進入佈署階段 [${level.name}]`);
@@ -709,30 +767,53 @@ importFileInput.addEventListener('change', (e) => {
 // ==========================================
 // 7. 戰鬥操作與平滑移動動畫
 // ==========================================
-// 平滑移動動畫函數：讓單位沿著 path 逐格前進
+// 平滑移動動畫：使用 GSAP 進行逐格像素補間，取代 setTimeout 逐格跳動
 function animateUnitMovement(unit: Unit, path: HexNode[], onComplete: () => void) {
     if (path.length === 0) {
         onComplete();
         return;
     }
 
-    let stepIndex = 0;
-    
-    function nextStep() {
-        if (stepIndex >= path.length) {
+    // 1. 計算每格的像素座標
+    const pixelPath = path.map(node => renderer.getPixelCoords(node));
+
+    // 2. 從起始位置開始（若 unit 已有視覺偏移則沿用，否則從起點開始）
+    const startPixel = renderer.getPixelCoords(unit.node);
+    unit.visualX = startPixel.px;
+    unit.visualY = startPixel.py;
+
+    // 3. 建立 GSAP 時間軸，逐格平滑補間
+    const tl = gsap.timeline({
+        onComplete: () => {
+            // 動畫結束：設定最終 node、清除視覺偏移
+            unit.node = path[path.length - 1];
+            unit.visualX = undefined;
+            unit.visualY = undefined;
+            renderGame();
             onComplete();
-            return;
         }
-        unit.node = path[stepIndex];
-        stepIndex++;
-        renderGame();
-        setTimeout(nextStep, 120);
+    });
+
+        // 4. 逐格加入補間
+        const stepDuration = 0.12; // 每格 120ms，與原 setTimeout 一致
+
+        pixelPath.forEach((target) => {
+            tl.to(unit, {
+                visualX: target.px,
+                visualY: target.py,
+                duration: stepDuration,
+                ease: 'power1.out',
+                onStart: () => {
+                    AudioManager.playMove();
+                },
+                onUpdate: () => {
+                    renderGame();
+                }
+            });
+        });
     }
 
-    nextStep();
-}
-
-canvas.addEventListener('mousemove', (event) => {
+    canvas.addEventListener('mousemove', (event) => {
     if (currentMode !== 'BATTLE' || gameManager.state === GameState.GAME_OVER) return;
     if (gameManager.state !== GameState.PLAYER_PHASE && gameManager.state !== GameState.UNIT_SELECTED) return;
     if (!selectedUnit || selectedUnit.hasActed) return;
@@ -742,9 +823,12 @@ canvas.addEventListener('mousemove', (event) => {
     const targetNode = grid.getNode(cubeCoords.x, cubeCoords.y, cubeCoords.z);
 
     currentPath = [];
-    if (targetNode && !targetNode.equals(selectedUnit.node) && actionMode === 'MOVE') {
-        currentPath = Pathfinder.findPath(grid, selectedUnit.node, targetNode, selectedUnit.job.maxMovement);
-    }
+        if (targetNode && !targetNode.equals(selectedUnit.node) && actionMode === 'MOVE') {
+            const occupiedNodes = gameManager.units
+                .filter(u => u !== selectedUnit)
+                .map(u => u.node);
+            currentPath = Pathfinder.findPath(grid, selectedUnit.node, targetNode, selectedUnit.job.maxMovement, occupiedNodes);
+        }
 
     renderGame();
 });
@@ -814,8 +898,9 @@ canvas.addEventListener('click', (event) => {
         const clickedUnit = gameManager.units.find(u => u.node.equals(clickedNode));
 
         if (clickedUnit && clickedUnit.faction === 'PLAYER' && !clickedUnit.hasActed && actionMode === 'MOVE') {
-            selectedUnit = clickedUnit;
-            gameManager.changeState(GameState.UNIT_SELECTED);
+                    selectedUnit = clickedUnit;
+                    console.log(`🎯 [Debug] 選取單位: ${clickedUnit.id} (HP:${clickedUnit.hp}/${clickedUnit.maxHp}, Node:${clickedUnit.node.toString()})`);
+                    gameManager.changeState(GameState.UNIT_SELECTED);
             actionMode = 'MOVE';
             updateRanges();
             renderGame();
@@ -832,9 +917,12 @@ canvas.addEventListener('click', (event) => {
         }
 
         if (actionMode === 'MOVE') {
-            const isReachable = reachableNodes.some(r => r.equals(clickedNode));
-            if (isReachable && clickedNode.isWalkable && !clickedUnit) {
-                const movePath = Pathfinder.findPath(grid, selectedUnit.node, clickedNode, selectedUnit.job.maxMovement);
+                    const isReachable = reachableNodes.some(r => r.equals(clickedNode));
+                    if (isReachable && clickedNode.isWalkable && !clickedUnit) {
+                        const occupiedNodes = gameManager.units
+                            .filter(u => u !== selectedUnit)
+                            .map(u => u.node);
+                        const movePath = Pathfinder.findPath(grid, selectedUnit.node, clickedNode, selectedUnit.job.maxMovement, occupiedNodes);
                 currentPath = [];
                 
                 // 執行平滑移動動畫
@@ -852,6 +940,7 @@ canvas.addEventListener('click', (event) => {
             const isAttackable = attackableNodes.some(a => a.equals(clickedNode));
             
             if (isAttackable && clickedUnit && clickedUnit.faction === 'ENEMY') {
+                // 1. 攻擊敵人
                 let baseDamage = 4;
                 let finalDamage = baseDamage;
 
@@ -862,21 +951,21 @@ canvas.addEventListener('click', (event) => {
                 }
 
                 const isDead = clickedUnit.takeDamage(finalDamage);
-                renderer.addFloatingText(clickedUnit.node, `-${finalDamage}`, '#ff1744');
+                                // 透過 onUnitDamaged 回呼統一觸發飄字、音效、震動（與敵方攻擊我方時效果一致）
+                                if (gameManager.onUnitDamaged) {
+                                    gameManager.onUnitDamaged(clickedUnit, finalDamage);
+                                } else {
+                                    renderer.addFloatingText(clickedUnit.node, `-${finalDamage}`, '#ff1744');
+                                }
+                                console.log(`⚔️ [Debug] 玩家 ${selectedUnit.id} 攻擊 ${clickedUnit.id} 造成 ${finalDamage} 傷害 (HP:${clickedUnit.hp}/${clickedUnit.maxHp}${isDead ? ' 💀' : ''})`);
                 
                 if (isDead) {
+                    console.warn(`⚠️ [Debug Unit Death] 單位 ${clickedUnit.id} 血量歸零！座標: ${clickedUnit.node.toString()}`, new Error().stack);
                     gameManager.units = gameManager.units.filter(u => u !== clickedUnit);
+                    console.log(`🗑️ [Debug] 已從陣列移除死亡單位 ${clickedUnit.id}，剩餘 ${gameManager.units.length} 個`);
                 }
 
-                // 攻擊完畢，結束行動
-                selectedUnit.hasActed = true;
-                selectedUnit = null;
-                selectedSkill = null;
-                actionMode = 'MOVE';
-                updateRanges();
-                gameManager.checkPlayerTurnEnd();
-            } else if (clickedNode.equals(selectedUnit.node)) {
-                // 如果不攻擊，再次點擊自己視為「待機」，結束行動
+                // 攻擊完畢：標記行動結束，重置選取狀態
                 selectedUnit.hasActed = true;
                 selectedUnit = null;
                 selectedSkill = null;
@@ -884,11 +973,13 @@ canvas.addEventListener('click', (event) => {
                 updateRanges();
                 gameManager.checkPlayerTurnEnd();
             } else {
-                // 點擊了無效區域，取消選取或重置
+                // 2. 只要已移動並進入 ATTACK 模式，點擊自己或點擊無效區域（空地/友軍），皆一律視為「待機」並結束行動！
+                selectedUnit.hasActed = true;
                 selectedUnit = null;
                 selectedSkill = null;
                 actionMode = 'MOVE';
                 updateRanges();
+                gameManager.checkPlayerTurnEnd();
             }
         }
 
@@ -1014,4 +1105,13 @@ btnConfirmUnitSelect?.addEventListener('click', () => {
 // 點擊遮罩關閉
 unitSelectModal?.addEventListener('click', (e) => {
     if (e.target === unitSelectModal) closeUnitSelectModal();
+});
+
+// ==========================================
+// 8. UI 點擊音效：全域監聽所有按鈕與選單按鈕
+// ==========================================
+document.querySelectorAll('#main-menu button, .floating-panel button, .modal-content button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        AudioManager.playClick();
+    });
 });

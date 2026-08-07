@@ -12,8 +12,12 @@ export class Unit {
     public hasActed: boolean = false; // 本回合是否已行動完畢
     public hp: number;
     public maxMp: number; // 新增
-    public mp: number;    // 新增
-    public maxHp: number;
+        public mp: number;    // 新增
+        public maxHp: number;
+
+        // GSAP 動畫用：視覺座標偏移（設定時優先於 node 像素座標）
+        public visualX?: number;
+        public visualY?: number;
 
     constructor(id: string, node: HexNode, job: Job, faction: Faction, maxHp: number = 10) {
         this.id = id;

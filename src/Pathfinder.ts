@@ -15,8 +15,9 @@ export class Pathfinder {
     /**
      * 尋找兩點間的最短路徑 (A* 演算法)
      */
-    public static findPath(grid: HexGrid, startNode: HexNode, targetNode: HexNode, maxSteps: number = Infinity): HexNode[] {
+    public static findPath(grid: HexGrid, startNode: HexNode, targetNode: HexNode, maxSteps: number = Infinity, occupiedNodes: HexNode[] = []): HexNode[] {
         if (!targetNode.isWalkable || targetNode.terrain === 'MOUNTAIN' || targetNode.terrain === 'WATER') return [];
+        if (occupiedNodes.some(n => n.equals(targetNode))) return [];
         if (startNode.equals(targetNode)) return [];
 
         const openSet: HexNode[] = [startNode];
@@ -48,7 +49,7 @@ export class Pathfinder {
 
             for (const neighbor of grid.getNeighbors(current)) {
                 const stepCost = this.getTerrainCost(neighbor);
-                if (stepCost >= 999) continue; // 不可通行
+                if (stepCost >= 999 || occupiedNodes.some(n => n.equals(neighbor))) continue; // 不可通行或被佔用
 
                 const tentativeGScore = (gScore.get(current.toString()) ?? Infinity) + stepCost;
                 if (tentativeGScore > maxSteps) continue;
@@ -87,7 +88,7 @@ export class Pathfinder {
     /**
      * 找出移動力內可到達的所有格子 (Dijkstra 演算法)
      */
-    public static getReachableNodes(grid: HexGrid, startNode: HexNode, maxSteps: number): HexNode[] {
+    public static getReachableNodes(grid: HexGrid, startNode: HexNode, maxSteps: number, occupiedNodes: HexNode[] = []): HexNode[] {
         const reachable: HexNode[] = [];
         const costSoFar: Map<string, number> = new Map();
         const queue: HexNode[] = [startNode];
@@ -103,7 +104,7 @@ export class Pathfinder {
 
             grid.getNeighbors(current).forEach(neighbor => {
                 const stepCost = this.getTerrainCost(neighbor);
-                if (stepCost >= 999) return;
+                if (stepCost >= 999 || occupiedNodes.some(n => n.equals(neighbor))) return;
 
                 const newCost = currentCost + stepCost;
 

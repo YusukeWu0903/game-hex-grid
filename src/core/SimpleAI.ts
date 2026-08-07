@@ -37,8 +37,12 @@ export class SimpleAI {
         let plannedPath: HexNode[] = [];
 
         // 3. 移動決策：如果不在攻擊射程內，計算移動路徑
-        if (minDistance > enemy.job.attackRangeMax) {
-            const fullPath = Pathfinder.findPath(grid, enemy.node, closestPlayer.node);
+                if (minDistance > enemy.job.attackRangeMax) {
+                    // 排除其他單位佔用的節點，但目標玩家的節點除外（AI 只需移動到目標附近即可攻擊）
+                    const occupiedNodes = allUnits
+                        .filter(u => u !== enemy && u !== closestPlayer)
+                        .map(u => u.node);
+                    const fullPath = Pathfinder.findPath(grid, enemy.node, closestPlayer.node, Infinity, occupiedNodes);
             
             if (fullPath.length > 0) {
                 const walkablePath = fullPath.filter(node => !node.equals(closestPlayer.node));

@@ -29,7 +29,7 @@ export class IsoHexRenderer {
         this.offsetY = this.canvas.height / 2;
     }
 
-    private getPixelCoords(node: HexNode): { px: number, py: number } {
+    public getPixelCoords(node: HexNode): { px: number, py: number } {
         const px = this.hexSize * Math.sqrt(3) * (node.x + node.z / 2);
         const py = this.hexSize * (3 / 2) * node.z;
         return {
@@ -203,7 +203,10 @@ export class IsoHexRenderer {
     }
 
     private drawUnit(unit: Unit): void {
-        const { px, py } = this.getPixelCoords(unit.node);
+            // 當 unit 有視覺偏移時 (GSAP 動畫)，使用視覺座標而非 node 座標
+            const { px, py } = (unit.visualX !== undefined && unit.visualY !== undefined)
+                ? { px: unit.visualX, py: unit.visualY }
+                : this.getPixelCoords(unit.node);
 
         // 1. 底座陰影
         this.ctx.beginPath();
