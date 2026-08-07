@@ -613,10 +613,26 @@ function buildLevelFromUI(): LevelData | null {
 }
 
 document.getElementById('btn-start-game')?.addEventListener('click', () => {
-    const levels = LevelManager.getSavedLevels();
+    let levels = LevelManager.getSavedLevels();
     if (levels.length === 0) {
-        alert('目前沒有已儲存的關卡！請先進入「關卡編輯器」建立並儲存關卡。');
-        return;
+        // 自動建立一個預設關卡（使用 map_custom 地圖 + 我方隊伍 + 預設敵方陣容）
+        const party = PlayerPartyManager.getParty();
+        const defaultLevel: LevelData = {
+            levelId: `level_auto_${Date.now()}`,
+            name: '自動戰役',
+            mapId: 'map_custom',
+            winCondition: 'ANNIHILATION',
+            loseCondition: 'PLAYER_DEATH',
+            playerRoster: party.map(u => ({ jobKey: u.jobKey, name: u.customName })),
+            enemyRoster: [
+                { enemyId: 'enemy_swordsman_base' },
+                { enemyId: 'enemy_archer_base' },
+                { enemyId: 'enemy_heavy_guard' }
+            ]
+        };
+        LevelManager.saveLevel(defaultLevel);
+        levels = LevelManager.getSavedLevels();
+        console.log(`📦 [自動戰役] 已建立預設關卡，使用地圖: ${defaultLevel.mapId}`);
     }
     startDeploymentMode(levels[0]);
 });
