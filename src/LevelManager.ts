@@ -1,10 +1,50 @@
 // src/LevelManager.ts
 import { HexGrid } from './HexGrid';
 import type { MapData, LevelData } from './data/GameSchema';
+import mapTutorial from './data/levels/map_tutorial.json';
+import map001 from './data/levels/map_001.json';
 
 export class LevelManager {
     private static MAP_REGISTRY_KEY = 'TACTICS_MAP_REGISTRY';
     private static LEVEL_REGISTRY_KEY = 'TACTICS_LEVEL_REGISTRY';
+
+    private static staticSeeded = false;
+
+    /** 將靜態 JSON 地圖檔種子資料載入 localStorage（僅在首次執行時） */
+    private static seedStaticMaps(): void {
+        if (this.staticSeeded) return;
+        this.staticSeeded = true;
+
+        const maps: MapData[] = this.getSavedMapsRaw();
+        let changed = false;
+
+        const seedMaps: MapData[] = [mapTutorial as MapData, map001 as MapData];
+        seedMaps.forEach(seedMap => {
+            if (!maps.some(m => m.mapId === seedMap.mapId)) {
+                maps.push(seedMap);
+                changed = true;
+                console.log(`🗺️ [LevelManager] 已從靜態檔案種子載入地圖: ${seedMap.mapId}`);
+            }
+        });
+
+        if (changed) {
+            localStorage.setItem(this.MAP_REGISTRY_KEY, JSON.stringify(maps));
+        }
+    }
+
+    /** 讀取原始資料（不自動觸發種子） */
+    private static getSavedMapsRaw(): MapData[] {
+        const data = localStorage.getItem(this.MAP_REGISTRY_KEY);
+        if (!data) {
+            return [this.createDefaultMap()];
+        }
+        try {
+            const maps = JSON.parse(data);
+            return Array.isArray(maps) ? maps : [];
+        } catch {
+            return [this.createDefaultMap()];
+        }
+    }
 
     // 建立一張乾淨的預設地圖 (供編輯器起始使用，不屬於任何關卡)
     public static createDefaultMap(): MapData {
@@ -51,6 +91,7 @@ export class LevelManager {
     }
 
     public static getSavedMaps(): MapData[] {
+        this.seedStaticMaps();
         const data = localStorage.getItem(this.MAP_REGISTRY_KEY);
         if (!data) {
             return [this.createDefaultMap()];
