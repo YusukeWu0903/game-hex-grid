@@ -38,16 +38,16 @@
       <!-- 我方出戰單位表 -->
       <div class="panel-section-title">我方出戰單位 (Player Roster)</div>
       <div id="player-roster-list" class="roster-list-container">
-        <!-- 動態產生 -->
-      </div>
-      <button id="btn-add-player-unit" class="io-btn" style="margin-bottom: 6px; width: 100%;">+ 新增我方單位</button>
+              <!-- 動態產生 -->
+            </div>
+            <button id="btn-select-player-units" class="io-btn" style="margin-bottom: 6px; width: 100%;">✅ 選擇出戰單位</button>
 
-      <!-- 敵方出戰單位表 -->
-      <div class="panel-section-title">敵方出戰單位 (Enemy Roster)</div>
-      <div id="enemy-roster-list" class="roster-list-container">
-        <!-- 動態產生 -->
-      </div>
-      <button id="btn-add-enemy-unit" class="io-btn" style="margin-bottom: 8px; width: 100%;">+ 新增敵方單位</button>
+            <!-- 敵方出戰單位表 -->
+            <div class="panel-section-title">敵方出戰單位 (Enemy Roster)</div>
+            <div id="enemy-roster-list" class="roster-list-container">
+              <!-- 動態產生 -->
+            </div>
+            <button id="btn-add-enemy-unit" class="io-btn" style="margin-bottom: 8px; width: 100%;">+ 新增敵方單位</button>
 
       <div class="form-group">
         <label>勝利條件</label>
@@ -70,49 +70,95 @@
     </div>
 
     <!-- 3. 地圖編輯器面板 (Map Editor Panel) - 子模組 -->
-    <div id="map-editor-panel" class="floating-panel" style="display: none;">
-      <div class="panel-header">
-        <span>🗺️ 地圖編輯器 (<span id="editing-map-name"></span>)</span>
-        <button id="btn-back-level-editor" class="action-btn">↩️ 儲存並返回</button>
-      </div>
-      <div class="panel-section-title">地形筆刷</div>
-      <div class="brush-group" id="brush-group">
-        <button class="brush-btn active" data-terrain="PLAIN">平地</button>
-        <button class="brush-btn" data-terrain="FOREST">森林</button>
-        <button class="brush-btn" data-terrain="MOUNTAIN">山脈</button>
-        <button class="brush-btn" data-terrain="SWAMP">沼澤</button>
-        <button class="brush-btn" data-terrain="HILLS">丘陵</button>
-        <button class="brush-btn" data-terrain="WATER">水域</button>
-      </div>
-      <div class="panel-section-title">佈署點筆刷</div>
-      <div class="brush-group" id="spawn-brush-group">
-        <button class="brush-btn spawn-p" data-spawn="PLAYER">🚩 我方 (P)</button>
-        <button class="brush-btn spawn-e" data-spawn="ENEMY">💀 敵方 (E)</button>
-        <button class="brush-btn spawn-clear" data-spawn="CLEAR">🧹 清除</button>
-      </div>
-      <div class="io-group">
-        <button id="btn-export" class="io-btn">📤 匯出</button>
-        <button id="btn-import" class="io-btn">📥 匯入</button>
-        <input type="file" id="import-file" accept=".json" style="display: none;" />
-      </div>
-    </div>
+        <div id="map-editor-panel" class="floating-panel" style="display: none;">
+          <div class="panel-header">
+            <span>🗺️ 地圖編輯器 (<span id="editing-map-name"></span>)</span>
+            <div class="header-actions">
+              <button id="btn-reset-map" class="action-btn">🔄 重置編輯</button>
+              <button id="btn-cancel-map" class="action-btn">↩️ 返回不儲存</button>
+              <button id="btn-back-level-editor" class="action-btn">💾 儲存並返回</button>
+            </div>
+          </div>
+          <div class="panel-section-title">地形筆刷</div>
+          <div class="brush-group" id="brush-group">
+            <button class="brush-btn active" data-terrain="PLAIN">平地</button>
+            <button class="brush-btn" data-terrain="FOREST">森林</button>
+            <button class="brush-btn" data-terrain="MOUNTAIN">山脈</button>
+            <button class="brush-btn" data-terrain="SWAMP">沼澤</button>
+            <button class="brush-btn" data-terrain="HILLS">丘陵</button>
+            <button class="brush-btn" data-terrain="WATER">水域</button>
+          </div>
+          <div class="panel-section-title">佈署點筆刷</div>
+          <div class="brush-group" id="spawn-brush-group">
+            <button class="brush-btn spawn-p" data-spawn="PLAYER">🚩 我方 (P)</button>
+            <button class="brush-btn spawn-e" data-spawn="ENEMY">💀 敵方 (E)</button>
+            <button class="brush-btn spawn-clear" data-spawn="CLEAR">🧹 清除</button>
+          </div>
+          <div class="io-group">
+            <button id="btn-export" class="io-btn">📤 匯出</button>
+            <button id="btn-import" class="io-btn">📥 匯入</button>
+            <input type="file" id="import-file" accept=".json" style="display: none;" />
+          </div>
+        </div>
 
     <!-- 4. 遊戲進行中 HUD 控制面板 -->
-    <div id="game-panel" class="floating-panel game-hud-panel" style="display: none;">
-      <div class="panel-header">
-        <span>🎮 戰鬥進行中</span>
-        <button id="btn-game-back" class="action-btn">🏠 放棄</button>
-      </div>
-    </div>
+        <div id="game-panel" class="floating-panel game-hud-panel" style="display: none;">
+          <div class="panel-header">
+            <span>🎮 戰鬥進行中</span>
+            <button id="btn-game-back" class="action-btn">🏠 放棄</button>
+          </div>
+        </div>
 
-    <!-- 回合切換過場動畫橫幅 -->
-    <div id="turn-banner"></div>
+        <!-- 5. 戰前佈署面板 -->
+        <div id="deployment-panel" class="floating-panel" style="display: none;">
+          <div class="panel-header">
+            <span>⚔️ 戰前佈署</span>
+            <button id="btn-deployment-cancel" class="action-btn">↩️ 返回</button>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px; text-align: center;">
+            請點擊 <span style="color: #38bdf8;">🚩 我方佈署點</span> 放置單位
+          </div>
+          <div id="deployment-unit-list" style="max-height: 150px; overflow-y: auto; margin-bottom: 12px;">
+            <!-- 動態產生可佈署單位清單 -->
+          </div>
+          <button id="btn-start-battle" class="io-btn primary-io" style="width: 100%;">⚔️ 確認出戰 (Start Battle)</button>
+        </div>
 
-    <!-- 遊戲畫布 -->
-    <canvas id="gameCanvas"></canvas>
+        <!-- 6. 結算面板 -->
+        <div id="result-panel" class="floating-panel" style="display: none;">
+          <div class="panel-header">
+            <span id="result-title">🏁 戰鬥結束</span>
+          </div>
+          <div id="result-message" style="font-size: 14px; color: #cbd5e1; text-align: center; padding: 20px;">
+            <!-- 動態顯示勝負訊息 -->
+          </div>
+          <button id="btn-result-back-menu" class="io-btn primary-io" style="width: 100%;">🏠 返回主選單</button>
+        </div>
+
+        <!-- 回合切換過場動畫橫幅 -->
+        <div id="turn-banner"></div>
+
+        <!-- 遊戲畫布 -->
+        <canvas id="gameCanvas"></canvas>
     
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+    <!-- 選擇我方出戰單位彈出視窗 (Modal) -->
+        <div id="unit-select-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span>✅ 選擇出戰單位 (點擊勾選)</span>
+                    <button id="btn-close-unit-modal" class="action-btn">✕ 關閉</button>
+                </div>
+                <div id="unit-select-list" class="modal-list">
+                    <!-- 動態產生隊伍單位勾選項 -->
+                </div>
+                <div class="modal-actions">
+                    <button id="btn-confirm-unit-select" class="io-btn primary-io">確認選擇</button>
+                </div>
+            </div>
+        </div>
+
+        <script type="module" src="/src/main.ts"></script>
+      </body>
   <style>
     body {
         margin: 0;
@@ -225,47 +271,61 @@
     }
 
     /* 浮動控制面板基礎樣式 */
-    .floating-panel {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        width: 250px;
-        max-height: calc(100vh - 40px);
-        overflow-y: auto;
-        background: rgba(15, 23, 42, 0.92);
-        padding: 14px;
-        border-radius: 12px;
-        border: 1px solid #334155;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        z-index: 100;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
+        .floating-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.92);
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
 
-    .panel-header {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-        color: #cbd5e1;
-        font-size: 13px;
-        font-weight: bold;
-        align-items: center;
-        border-bottom: 1px solid #1e293b;
-        padding-bottom: 6px;
-    }
-    .action-btn {
-        background: #475569;
-        color: #f8fafc;
-        border: none;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 11px;
-    }
-    .action-btn:hover {
-        background: #64748b;
-    }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: bold;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 6px;
+        }
+        .panel-header .header-actions {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            justify-content: flex-end;
+        }
+        .panel-header .action-btn {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            text-align: center;
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+        .action-btn {
+            background: #475569;
+            color: #f8fafc;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .action-btn:hover {
+            background: #64748b;
+        }
     .form-group {
         display: flex;
         flex-direction: column;
@@ -402,8 +462,106 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
-        width: 100%;
-        margin-top: 6px;
-    }
-  </style>
-</html>
+                width: 100%;
+                margin-top: 6px;
+            }
+
+            /* 彈出視窗 樣式 */
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                backdrop-filter: blur(4px);
+            }
+            .modal-content {
+                background: rgba(15, 23, 42, 0.95);
+                border: 1px solid #334155;
+                border-radius: 12px;
+                padding: 16px;
+                width: 90%;
+                max-width: 350px;
+                max-height: 80vh;
+                overflow: hidden;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+                display: flex;
+                flex-direction: column;
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #334155;
+                color: #38bdf8;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            .modal-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                max-height: 50vh;
+                overflow-y: auto;
+                padding: 4px;
+            }
+            .modal-unit-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px;
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .modal-unit-item:hover {
+                background: #334155;
+                border-color: #38bdf8;
+            }
+            .modal-unit-item.selected {
+                border-color: #38bdf8;
+                background: rgba(2, 132, 199, 0.2);
+            }
+            .modal-unit-item input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: #38bdf8;
+            }
+            .modal-unit-info {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .modal-unit-name {
+                font-size: 13px;
+                color: #f8fafc;
+                font-weight: bold;
+            }
+            .modal-unit-detail {
+                font-size: 11px;
+                color: #94a3b8;
+            }
+            .modal-unit-stats {
+                font-size: 10px;
+                color: #64748b;
+                font-family: monospace;
+            }
+            .modal-actions {
+                display: flex;
+                justify-content: flex-end;
+                margin-top: 16px;
+                padding-top: 12px;
+                border-top: 1px solid #334155;
+            }
+          </style>
+        </html>

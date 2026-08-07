@@ -19,6 +19,12 @@ export class GameManager {
 
     // 敵方單位平滑移動動畫回調
     public onAnimateMovement?: (unit: Unit, path: HexNode[], onComplete: () => void) => void;
+
+    // 遊戲結束回調
+    public onGameOver?: (isVictory: boolean) => void;
+
+    // 單位受傷飄字回調
+    public onUnitDamaged?: (unit: Unit, damage: number) => void;
     
     public setGrid(grid: HexGrid) {
         this.grid = grid;
@@ -109,6 +115,9 @@ export class GameManager {
             if (aiPlan.targetToAttack) {
                 const damage = 3;
                 const isDead = aiPlan.targetToAttack.takeDamage(damage);
+                if (this.onUnitDamaged) {
+                    this.onUnitDamaged(aiPlan.targetToAttack, damage);
+                }
                 console.log(`🤖 AI 敵方 ${enemy.id} 攻擊了我方 ${aiPlan.targetToAttack.id}！造成 ${damage} 點傷害。`);
                 if (isDead) {
                     console.log(`💀 我方單位 ${aiPlan.targetToAttack.id} 陣亡了！`);
@@ -142,23 +151,25 @@ export class GameManager {
     }
 
     public checkWinLossCondition(): boolean {
-        const alivePlayerUnits = this.units.filter(u => u.faction === 'PLAYER' && u.hp > 0);
-        const aliveEnemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
+            const alivePlayerUnits = this.units.filter(u => u.faction === 'PLAYER' && u.hp > 0);
+            const aliveEnemyUnits = this.units.filter(u => u.faction === 'ENEMY' && u.hp > 0);
 
-        if (aliveEnemyUnits.length === 0) {
-            console.log("🎉🎉🎉【 VICTORY 】全數敵方單位已被擊敗！玩家獲勝！🎉🎉🎉");
-            this.changeState(GameState.GAME_OVER);
-            return true;
+            if (aliveEnemyUnits.length === 0) {
+                console.log("🎉🎉🎉【 VICTORY 】全數敵方單位已被擊敗！玩家獲勝！🎉🎉🎉");
+                this.changeState(GameState.GAME_OVER);
+                if (this.onGameOver) this.onGameOver(true);
+                return true;
+            }
+
+            if (alivePlayerUnits.length === 0) {
+                console.log("💀💀💀【 DEFEAT 】我方單位已全數陣亡！戰鬥失敗！💀💀💀");
+                this.changeState(GameState.GAME_OVER);
+                if (this.onGameOver) this.onGameOver(false);
+                return true;
+            }
+
+            return false;
         }
-
-        if (alivePlayerUnits.length === 0) {
-            console.log("💀💀💀【 DEFEAT 】我方單位已全數陣亡！戰鬥失敗！💀💀💀");
-            this.changeState(GameState.GAME_OVER);
-            return true;
-        }
-
-        return false;
-    }
 
     public checkPlayerTurnEnd() {
         if (this.checkWinLossCondition()) return;
