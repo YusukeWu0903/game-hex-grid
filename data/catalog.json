@@ -1,0 +1,74 @@
+{
+  "jobs": {
+    "swordsman": {
+      "name": "劍士",
+      "movement": 3,
+      "max_mp": 20,
+      "range_min": 1,
+      "range_max": 1,
+      "skill": {
+        "name": "重擊",
+        "range_min": 1,
+        "range_max": 1,
+        "mp_cost": 10,
+        "damage": 7
+      }
+    },
+    "archer": {
+      "name": "弓箭手",
+      "movement": 2,
+      "max_mp": 30,
+      "range_min": 2,
+      "range_max": 3,
+      "skill": {
+        "name": "強力射擊",
+        "range_min": 2,
+        "range_max": 4,
+        "mp_cost": 15,
+        "damage": 6
+      }
+    }
+  },
+  "roster": [
+    {
+      "id": "player_swordsman_01",
+      "name": "艾爾",
+      "job": "swordsman",
+      "max_hp": 12
+    },
+    {
+      "id": "player_swordsman_02",
+      "name": "羅伊",
+      "job": "swordsman",
+      "max_hp": 11
+    },
+    {
+      "id": "player_archer_01",
+      "name": "琳恩",
+      "job": "archer",
+      "max_hp": 10
+    }
+  ],
+  "enemies": {
+    "enemy_swordsman_base": {
+      "name": "帝國步兵",
+      "job": "swordsman",
+      "max_hp": 12
+    },
+    "enemy_archer_base": {
+      "name": "帝國弓手",
+      "job": "archer",
+      "max_hp": 10
+    },
+    "enemy_heavy_guard": {
+      "name": "帝國重裝兵",
+      "job": "swordsman",
+      "max_hp": 18
+    },
+    "enemy_assassin": {
+      "name": "帝國刺客",
+      "job": "swordsman",
+      "max_hp": 8
+    }
+  }
+}
