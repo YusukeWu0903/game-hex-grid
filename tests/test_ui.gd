@@ -53,6 +53,7 @@ func run() -> void:
 		return
 	app = load("res://scenes/main.tscn").instantiate()
 	root.add_child(app)
+	app.combat_cinematics = false
 	await process_frame
 	check(app.mode == "MENU","menu opens")
 	await capture("01-menu")

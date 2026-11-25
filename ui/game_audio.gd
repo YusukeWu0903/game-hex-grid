@@ -26,3 +26,10 @@ func play(sound: String) -> void:
 	if enabled and sounds.has(sound):
 		player.stream = sounds[sound]
 		player.play()
+
+func set_volume(percent: float) -> void:
+	player.volume_db = -80.0 if percent <= 0 else -18.0+linear_to_db(percent/100.0)
+
+func _exit_tree() -> void:
+	if is_instance_valid(player):
+		player.stop()

@@ -8,6 +8,11 @@ var units: Array = []
 var selected_id = ""
 var reachable: Dictionary = {}
 var target_cells: Dictionary = {}
+var threat_cells: Dictionary = {}
+var inspected_id = ""
+var pan_offset = Vector2.ZERO
+var dragging = false
+var camera_locked = false
 var path: Array = []
 var visual_positions: Dictionary = {}
 var hovered = Vector3i(999,999,999)
@@ -23,27 +28,55 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
 	resized.connect(queue_redraw)
+	mouse_exited.connect(func():
+		hovered = Vector3i(999,999,999)
+		cell_hovered.emit(hovered)
+		queue_redraw())
 
 func hex_size() -> float:
 	var radius = int(map.get("radius",4))
 	return minf(size.x / (sqrt(3.0)*(2*radius+1)+1), size.y/(3*radius+4)) * zoom
 
 func center() -> Vector2:
-	return size * Vector2(0.5,0.49)
+	return size * Vector2(0.5,0.49) + pan_offset
 
 func position_of(cell: Vector3i) -> Vector2:
 	return center() + Hex.to_pixel(cell,hex_size())
 
+func reset_camera() -> void:
+	pan_offset = Vector2.ZERO
+	zoom = 1.0
+	queue_redraw()
+
+func focus_cell(cell: Vector3i) -> void:
+	pan_offset = -Hex.to_pixel(cell,hex_size())
+	queue_redraw()
+
 func _gui_input(event: InputEvent) -> void:
 	if map.is_empty():
 		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+		dragging = event.pressed and not camera_locked
+		accept_event()
+		return
 	if event is InputEventMouseMotion:
+		if dragging and not camera_locked:
+			if event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
+				pan_offset += event.relative
+				pan_offset = pan_offset.clamp(-size,size)
+				queue_redraw()
+				accept_event()
+				return
+			dragging = false
 		var cell = Hex.from_pixel(event.position-center(),hex_size())
 		if cell != hovered:
 			hovered = cell
 			cell_hovered.emit(cell)
 			queue_redraw()
 	if event is InputEventMouseButton and event.pressed:
+		if camera_locked and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
+			accept_event()
+			return
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			zoom = minf(1.5,zoom+0.1)
 			queue_redraw()
@@ -90,6 +123,11 @@ func _draw() -> void:
 		var outline = PackedVector2Array(points)
 		outline.append(points[0])
 		draw_polyline(outline,color.lightened(0.15),1.0,true)
+		if threat_cells.has(key):
+			draw_colored_polygon(points,Color(0.8,0.22,0.55,0.13))
+			draw_polyline(outline,Color("#b16b96"),1.2,true)
+			# Small corner mark keeps danger distinct from attack-target fill.
+			draw_circle(at+Vector2(0,-hs*0.70),2.0,Color("#e299c5"))
 		if reachable.has(key):
 			draw_colored_polygon(points,Color(0.22,0.65,0.72,0.18))
 			draw_polyline(outline,Color("#4b9eae"),1.5,true)
@@ -117,13 +155,16 @@ func _draw() -> void:
 	for unit in units:
 		draw_unit(unit,hs)
 	for effect in effects:
-		var at: Vector2 = effect.position + Vector2(0,-30.0*(1.0-effect.life))
+		var at: Vector2 = position_of(effect.cell) + Vector2(0,-12-30.0*(1.0-effect.life))
 		text_at(at,effect.text,22,Color(1,0.8,0.6,minf(1.0,effect.life*2.0)))
 
 func draw_unit(unit: Dictionary, hs: float) -> void:
 	if unit.hp <= 0:
 		return
-	var at: Vector2 = visual_positions.get(unit.id,position_of(unit.cell))
+	var at: Vector2 = position_of(unit.cell)
+	if visual_positions.has(unit.id):
+		var motion = visual_positions[unit.id]
+		at = position_of(motion.from).lerp(position_of(motion.to),motion.weight)
 	var radius = hs*0.37
 	var player = unit.faction == "PLAYER"
 	var color = Color("#257b9c") if player else Color("#a84545")
@@ -132,6 +173,8 @@ func draw_unit(unit: Dictionary, hs: float) -> void:
 	draw_circle(at+Vector2(0,6),radius+2,Color(0,0,0,0.45))
 	draw_circle(at,radius,color)
 	draw_arc(at,radius,0,TAU,40,Color("#8dd6ef") if player else Color("#f5aaa1"),1.8,true)
+	if unit.id == inspected_id and unit.id != selected_id:
+		draw_arc(at,radius+6,0,TAU,40,Color("#e299c5"),2.0,true)
 	if unit.id == selected_id:
 		draw_arc(at,radius+5,0,TAU,40,Color("#f4d58b"),2.5,true)
 	var white = Color("#f4f2e9")
@@ -154,7 +197,7 @@ func draw_unit(unit: Dictionary, hs: float) -> void:
 		text_at(at+Vector2(radius,0),"✓",13,Color("#e2e8ee"))
 
 func add_damage(cell: Vector3i, damage: int) -> void:
-	effects.append({"position":position_of(cell)+Vector2(0,-12),"text":"−%d" % damage,"life":1.0})
+	effects.append({"cell":cell,"text":"−%d" % damage,"life":1.0})
 	queue_redraw()
 
 func _process(delta: float) -> void:

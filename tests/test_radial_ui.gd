@@ -69,6 +69,7 @@ func run() -> void:
 		return
 	app = load("res://scenes/main.tscn").instantiate()
 	root.add_child(app)
+	app.combat_cinematics = false
 	await process_frame
 	app.level.mapId = "map_tutorial"
 	app.begin_deployment(app.level)

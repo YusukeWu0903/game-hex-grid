@@ -6,12 +6,19 @@ const Session = preload("res://core/battle_session.gd")
 const Store = preload("res://core/data_store.gd")
 const Board = preload("res://ui/hex_board.gd")
 const Audio = preload("res://ui/game_audio.gd")
+const Preferences = preload("res://core/preferences.gd")
+const Saves = preload("res://core/battle_save.gd")
+const Cinematic = preload("res://ui/combat_cinematic.gd")
 const RadialActions = preload("res://ui/radial_actions.gd")
 
+var preferences
+var settings_timer: Timer
 var store
 var battle
 var board
 var audio
+var cinematic
+var combat_cinematics = true
 var radial_actions
 var sidebar: VBoxContainer
 var state_label: Label
@@ -20,6 +27,8 @@ var detail_label: Label
 var message_label: Label
 var context_label: Label
 var mode = "MENU"
+var inspected_id = ""
+var show_all_threats = false
 var selection = ""
 var action_mode = "MOVE"
 var busy = false
@@ -34,6 +43,7 @@ var selected_map_index = 0
 var current_notice = ""
 var saved_notice = ""
 var file_dialog: FileDialog
+var help_dialog: AcceptDialog
 var confirm_dialog: ConfirmationDialog
 var confirm_action: Callable
 var name_input: LineEdit
@@ -48,6 +58,9 @@ var wait_button: Button
 func _ready() -> void:
 	get_window().min_size = Vector2i(1100,720)
 	store = Store.new()
+	preferences = Preferences.new(store.storage_path.get_base_dir().path_join("settings.json"))
+	reduced_motion = preferences.values.reduced_motion
+	combat_cinematics = preferences.values.cinematics
 	battle = Session.new()
 	build_theme()
 	build_shell()
@@ -55,6 +68,8 @@ func _ready() -> void:
 	show_menu()
 	if not store.last_error.is_empty():
 		notice(store.last_error)
+	if not preferences.error.is_empty():
+		notice(preferences.error)
 	set_process_unhandled_key_input(true)
 
 func build_theme() -> void:
@@ -82,6 +97,24 @@ func build_theme() -> void:
 	t.set_color("font_color","Label",Color("#d9e3ec"))
 	t.set_color("font_color","Button",Color("#e5edf4"))
 	t.set_color("font_disabled_color","Button",Color("#76889a"))
+	var dialog_panel = StyleBoxFlat.new()
+	dialog_panel.bg_color = Color("#142130")
+	dialog_panel.border_color = Color("#385065")
+	dialog_panel.set_border_width_all(1)
+	dialog_panel.content_margin_left = 18
+	dialog_panel.content_margin_right = 18
+	dialog_panel.content_margin_top = 16
+	dialog_panel.content_margin_bottom = 16
+	t.set_stylebox("panel","AcceptDialog",dialog_panel)
+	var window_border = dialog_panel.duplicate()
+	window_border.expand_margin_top = 28
+	t.set_stylebox("embedded_border","Window",window_border)
+	t.set_color("title_color","Window",Color("#e4d4b7"))
+	t.set_font("normal_font","RichTextLabel",font)
+	t.set_font("bold_font","RichTextLabel",font)
+	t.set_font_size("normal_font_size","RichTextLabel",18)
+	t.set_font_size("bold_font_size","RichTextLabel",19)
+	t.set_color("default_color","RichTextLabel",Color("#d9e3ec"))
 	t.set_constant("separation","VBoxContainer",9)
 	t.set_constant("separation","HBoxContainer",10)
 	theme = t
@@ -107,15 +140,58 @@ func build_shell() -> void:
 	top.add_child(state_label)
 	var sound = CheckButton.new()
 	sound.text = "音效"
-	sound.button_pressed = true
+	sound.button_pressed = preferences.values.sound
 	top.add_child(sound)
 	var motion = CheckButton.new()
 	motion.text = "減少動態"
+	motion.button_pressed = reduced_motion
 	top.add_child(motion)
-	motion.toggled.connect(func(value): reduced_motion = value)
+	motion.toggled.connect(func(value):
+		reduced_motion = value
+		preferences.values.reduced_motion = value
+		persist_preferences())
 	audio = Audio.new()
 	add_child(audio)
-	sound.toggled.connect(func(value): audio.enabled = value)
+	audio.enabled = preferences.values.sound
+	audio.set_volume(preferences.values.volume)
+	sound.toggled.connect(func(value):
+		audio.enabled = value
+		if not value: audio.player.stop()
+		preferences.values.sound = value
+		persist_preferences())
+	var volume = HSlider.new()
+	volume.custom_minimum_size.x = 85
+	volume.min_value = 0
+	volume.max_value = 100
+	volume.step = 5
+	volume.value = preferences.values.volume
+	volume.tooltip_text = "音效音量 %d%%" % preferences.values.volume
+	volume.accessibility_name = "音效音量"
+	top.add_child(volume)
+	settings_timer = Timer.new()
+	settings_timer.one_shot = true
+	settings_timer.wait_time = 0.3
+	settings_timer.timeout.connect(persist_preferences)
+	add_child(settings_timer)
+	volume.value_changed.connect(func(value):
+		preferences.values.volume = int(value)
+		audio.set_volume(value)
+		volume.tooltip_text = "音效音量 %d%%" % int(value)
+		settings_timer.start())
+	var cinema_toggle = CheckButton.new()
+	cinema_toggle.text = "戰鬥演出"
+	cinema_toggle.button_pressed = combat_cinematics
+	cinema_toggle.toggled.connect(func(value):
+		combat_cinematics = value
+		preferences.values.cinematics = value
+		persist_preferences())
+	top.add_child(cinema_toggle)
+	var help_button = Button.new()
+	help_button.text = "?"
+	help_button.tooltip_text = "操作與地形說明 [F1]"
+	help_button.accessibility_name = "操作與地形說明"
+	help_button.pressed.connect(show_help)
+	top.add_child(help_button)
 	root.add_child(HSeparator.new())
 	var body = HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -166,6 +242,52 @@ func build_shell() -> void:
 	confirm_dialog.cancel_button_text = "取消"
 	confirm_dialog.confirmed.connect(func(): if confirm_action.is_valid(): confirm_action.call())
 	add_child(confirm_dialog)
+	cinematic = Cinematic.new()
+	add_child(cinematic)
+	cinematic.impact.connect(func(): audio.play("hit"))
+	help_dialog = AcceptDialog.new()
+	help_dialog.title = "操作與戰鬥規則"
+	help_dialog.ok_button_text = "返回遊戲"
+	add_child(help_dialog)
+	var help = RichTextLabel.new()
+	help.custom_minimum_size = Vector2(620,440)
+	help.bbcode_enabled = true
+	help.text = """[b]每回合的行動[/b]
+每名角色可先移動一次，再攻擊、使用技能或待機一次。攻擊後行動結束。
+取消選取不消耗行動；已完成的移動不會撤回。每場新戰鬥恢復全部 HP／MP。
+
+[b]角色周圍五鍵[/b]
+上：移動 [M]　右上：攻擊 [A]　右下：技能 [S]
+左下：待機 [W]　左上：取消 [Esc]
+選指令後點目的地或敵人。右鍵 / Esc 返回行動選單，再按一次取消選取。
+滑鼠停留在圖示上可查看效果、消耗及停用原因。
+
+[b]觀察戰場[/b]
+未選攻擊目標時，點敵人或已行動的我方可查看資料。
+[T] 顯示全部敵方威脅；紫紅色格與小圓點表示移動後可能普攻到的位置。
+範圍依目前占位計算，不保證 AI 選擇該位置；單位移動後會重新計算。
+滾輪縮放；中鍵拖曳平移；[F] 定位所選角色；[Home] 重置視角。
+
+[b]地形[/b]
+[color=#acbccf]■ 平地[/color]：移動成本 1
+[color=#7eb39b]■ 森林[/color]、[color=#b4b984]■ 沼澤[/color]、[color=#c5a882]■ 丘陵[/color]：移動成本 2
+[color=#a6adb8]■ 山脈[/color]、[color=#6ea8ca]■ 水域[/color]：不可通行
+單位不能穿越其他單位。地形目前不加防禦，也不遮擋箭矢。
+
+[b]攻擊與技能[/b]
+合法攻擊必中、固定傷害；沒有反擊、暴擊或高低差加成。
+劍士：普攻射程 1；重擊消耗 10 MP、傷害 7。
+弓箭手：普攻射程 2–3；強力射擊消耗 15 MP、傷害 6、射程 2–4。
+我方普攻傷害 4，敵方普攻傷害 3。敵方目前僅使用普通攻擊。
+
+[b]演出與保存[/b]
+戰鬥演出中可按 Space / Esc 跳過；跳過仍正常結算一次。
+頂端可調整音效、音量、減少動態及演出開關，設定會保存。
+可在我方回合、沒有動畫時儲存戰鬥 [Ctrl+S]，從主選單「繼續戰鬥」讀取。
+讀檔保留資源與行動狀態；上一份存檔可從主選單「讀取上一份備份」恢復。
+敵方全滅即勝利，我方全滅即失敗。
+"""
+	help_dialog.add_child(help)
 
 func clear_sidebar() -> void:
 	for child in sidebar.get_children():
@@ -206,12 +328,19 @@ func confirm(text: String, callback: Callable) -> void:
 
 func invalidate_animation() -> void:
 	generation += 1
+	if cinematic != null:
+		cinematic.abort()
 	if active_tween != null and active_tween.is_valid():
 		active_tween.kill()
 	board.visual_positions.clear()
 	if radial_actions != null:
 		radial_actions.hide()
 	board.effects.clear()
+	board.threat_cells.clear()
+	board.inspected_id = ""
+	inspected_id = ""
+	board.camera_locked = false
+	board.dragging = false
 	busy = false
 
 func show_menu() -> void:
@@ -246,6 +375,9 @@ func show_menu() -> void:
 	label("敵軍全滅即勝利\n我方全滅即失敗")
 	label("可出戰 %d 人 · 敵方 %d 人" % [level.playerIds.size(),level.enemyIds.size()])
 	button("開始部署",func(): begin_deployment(level))
+	button("繼續戰鬥",load_battle,not FileAccess.file_exists(battle_save_path()))
+	if FileAccess.file_exists(battle_save_path()+".bak"):
+		button("讀取上一份備份",func(): load_battle(true))
 	sidebar.add_child(HSeparator.new())
 	button("關卡編輯",func(): open_level_editor(level))
 	button("地圖編輯",func(): open_map_editor(board.map))
@@ -254,17 +386,20 @@ func show_menu() -> void:
 	notice("選擇關卡，開始部署。")
 	board.queue_redraw()
 
-func begin_deployment(config: Dictionary) -> void:
-	var errors = store.validate_level(config)
+func begin_deployment(config: Dictionary, map_override: Dictionary = {}) -> void:
+	var errors: Array[String] = []
+	if map_override.is_empty():
+		errors = store.validate_level(config)
 	if not errors.is_empty():
 		notice("\n".join(errors))
 		return
 	invalidate_animation()
-	var prepared = battle.prepare(store.map_by_id(config.mapId),config.playerIds,config.enemyIds)
+	var prepared = battle.prepare(store.map_by_id(config.mapId) if map_override.is_empty() else map_override,config.playerIds,config.enemyIds)
 	if not prepared.is_empty():
 		notice("\n".join(prepared))
 		return
 	level = config.duplicate(true)
+	board.reset_camera()
 	mode = "DEPLOYMENT"
 	selection = ""
 	action_mode = "MOVE"
@@ -321,21 +456,43 @@ func battle_ui() -> void:
 		return
 	label("第 %d 回合" % battle.turn,23)
 	label("我方回合" if battle.phase == "PLAYER" else "敵方行動中",18)
-	var selected = selected_unit()
+	var selected = battle.get_unit(inspected_id) if not inspected_id.is_empty() else selected_unit()
 	if selected.is_empty():
-		label("選擇我方角色")
+		label("選擇我方角色；點敵人查看資料")
 	else:
 		label(selected.name + " · " + Catalog.data().jobs[selected.job].name,20)
 		label("HP %d / %d    MP %d / %d" % [selected.hp,selected.max_hp,selected.mp,selected.max_mp])
 		label("已行動" if selected.acted else ("已移動 · 尚可行動" if selected.moved else "尚未移動或行動"),14)
+		label("我方" if selected.faction == "PLAYER" else "敵方 · 下次行動威脅以紫紅色標示",14)
+		var normal = Catalog.action(selected)
+		label("移動 %d  ·  普攻 %d 傷害
+射程 %d–%d 格" % [selected.movement,normal.damage,normal.range_min,normal.range_max],14)
+		if selected.faction == "PLAYER":
+			var skill = Catalog.action(selected,true)
+			label("%s · %d MP
+%d 傷害 · 射程 %d–%d 格" % [skill.name,skill.mp_cost,skill.damage,skill.range_min,skill.range_max],14)
+		else:
+			label("目前敵方使用普通攻擊。",13)
+
 	sidebar.add_child(HSeparator.new())
 	for unit in battle.units:
 		if unit.faction == "PLAYER":
-			button("%s  HP %d/%d%s" % [unit.name,unit.hp,unit.max_hp," · 完成" if unit.acted else ""],
+			button("%s  HP %d/%d%s" % [unit.name,unit.hp,unit.max_hp," · 完成" if unit.acted else (" · 已移動" if unit.moved else "")],
 				func(): select_unit(unit.id),busy or battle.phase != "PLAYER" or unit.acted)
+	var threat_toggle = CheckButton.new()
+	threat_toggle.text = "全部敵方威脅 [T]"
+	threat_toggle.button_pressed = show_all_threats
+	threat_toggle.tooltip_text = "依目前占位預估敵人下次移動後的普攻範圍；不是 AI 必定攻擊的位置。"
+	threat_toggle.toggled.connect(func(value):
+		show_all_threats = value
+		sync_board())
+	sidebar.add_child(threat_toggle)
+	button("定位角色 [F]",focus_inspected,selected.is_empty() or busy)
+	button("重置視角 [Home]",func(): board.reset_camera(),busy)
+	button("儲存戰鬥 [Ctrl+S]",request_save_battle,busy or battle.phase != "PLAYER")
 	button("結束我方回合",func(): confirm("讓尚未行動的角色全部待機？",end_turn),busy or battle.phase != "PLAYER")
 	button("返回選單",func(): confirm("離開這場戰鬥？下次出戰會恢復全部 HP／MP。",show_menu))
-	label("右鍵 / Esc：返回或取消\n滾輪：縮放",13)
+	label("右鍵 / Esc：返回或取消\n滾輪：縮放 · 中鍵拖曳：平移",13)
 	sync_board()
 
 func sync_radial_actions() -> void:
@@ -362,6 +519,7 @@ func select_unit(id: String) -> void:
 	if busy or not battle.can_control(id):
 		return
 	selection = id
+	inspected_id = ""
 	action_mode = "COMMAND"
 	battle_ui()
 	notice("在角色周圍選擇指令；滑鼠停留可查看名稱與消耗。")
@@ -382,6 +540,7 @@ func choose_action(value: String) -> void:
 func cancel_selection() -> void:
 	if busy:
 		return
+	inspected_id = ""
 	if action_mode in ["MOVE","ATTACK","SKILL"] and not selection.is_empty():
 		action_mode = "COMMAND"
 		notice("已返回角色行動選單；尚未消耗的行動保留。")
@@ -423,6 +582,13 @@ func sync_board() -> void:
 		board.map = battle.map
 		board.units = battle.units
 	board.selected_id = selection
+	board.inspected_id = inspected_id
+	board.camera_locked = busy
+	board.threat_cells = {}
+	if mode == "BATTLE" and not busy:
+		for enemy in battle.units:
+			if enemy.faction == "ENEMY" and (show_all_threats or enemy.id == inspected_id):
+				board.threat_cells.merge(Rules.threat_cells(battle.map,enemy,battle.units,Catalog.action(enemy)))
 	board.show_spawns = mode in ["DEPLOYMENT","MAP_EDITOR"]
 	board.show_coordinates = mode == "MAP_EDITOR"
 	board.reachable = {}
@@ -451,6 +617,8 @@ func on_cell_hovered(cell: Vector3i) -> void:
 	hover_cell = cell
 	if not Hex.inside(cell,int(board.map.get("radius",0))):
 		detail_label.text = ""
+		board.path = []
+		board.queue_redraw()
 		return
 	var terrain = board.map.terrains.get(Hex.key(cell),"PLAIN")
 	var terrain_names = {"PLAIN":"平地","FOREST":"森林","SWAMP":"沼澤","HILLS":"丘陵","MOUNTAIN":"山脈","WATER":"水域"}
@@ -466,7 +634,9 @@ func on_cell_hovered(cell: Vector3i) -> void:
 		elif action_mode in ["ATTACK","SKILL"] and not target.is_empty():
 			var action = Catalog.action(unit,action_mode == "SKILL")
 			if Rules.can_attack(unit,target,action):
-				detail += "  |  預計 %d 傷害 → HP %d" % [action.damage,maxi(0,target.hp-action.damage)]
+				detail += "  |  預計 %d 傷害 → HP %d%s" % [action.damage,maxi(0,target.hp-action.damage)," · 可擊倒" if target.hp<=action.damage else ""]
+			else:
+				detail += "  |  "+Rules.attack_error(unit,target,action)
 	detail_label.text = detail
 	board.queue_redraw()
 
@@ -496,6 +666,13 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 	if mouse_button != MOUSE_BUTTON_LEFT:
 		return
 	var clicked = Rules.unit_at(battle.units,cell)
+	if not clicked.is_empty() and (selection.is_empty() or action_mode == "COMMAND") and not battle.can_control(clicked.id):
+		selection = ""
+		inspected_id = clicked.id
+		action_mode = "COMMAND"
+		battle_ui()
+		notice("查看角色資料；右鍵 / Esc 關閉。紫紅色標示為依目前占位預估的下一次普攻威脅。")
+		return
 	if not clicked.is_empty() and clicked.faction == "PLAYER" and action_mode not in ["ATTACK","SKILL"]:
 		select_unit(clicked.id)
 		return
@@ -520,34 +697,52 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 		battle_ui()
 		notice("移動完成。從角色周圍選擇攻擊、技能或待機。")
 	elif action_mode in ["ATTACK","SKILL"]:
+		var attacker_snapshot = selected_unit().duplicate(true)
+		var target_snapshot = clicked.duplicate(true)
+		var attack_action = Catalog.action(attacker_snapshot,action_mode == "SKILL")
 		var result = battle.attack(selection,str(clicked.get("id","")),action_mode == "SKILL")
 		if not result.ok:
-			notice("目標無效、超出射程或 MP 不足；行動未消耗。")
+			notice(Rules.attack_error(attacker_snapshot,target_snapshot,attack_action)+" 行動未消耗。")
+			return
+		var token = generation
+		await present_combat(attacker_snapshot,target_snapshot,attack_action,result)
+		if token != generation:
 			return
 		board.add_damage(cell,int(result.damage))
-		audio.play("hit")
 		selection = ""
 		action_mode = "MOVE"
 		after_action()
 
+func present_combat(actor: Dictionary, target: Dictionary, action: Dictionary, result: Dictionary) -> void:
+	if not combat_cinematics:
+		audio.play("hit")
+		return
+	var token = generation
+	busy = true
+	sync_board()
+	cinematic.begin(actor,target,action,int(result.damage),maxi(0,int(target.hp)-int(result.damage)),reduced_motion)
+	await cinematic.finished
+	if token == generation:
+		busy = false
+
 func animate_movement(id: String, origin: Vector3i, path: Array, token: int) -> void:
-	var previous = board.position_of(origin)
-	board.visual_positions[id] = previous
+	var previous = origin
 	for cell in path:
 		if token != generation:
 			return
-		var next = board.position_of(cell)
+		# Store logical cells, not cached pixels, so resize cannot detach a moving unit.
+		board.visual_positions[id] = {"from":previous,"to":cell,"weight":0.0}
 		if reduced_motion:
-			board.visual_positions[id] = next
+			board.visual_positions[id].weight = 1.0
 		else:
 			active_tween = create_tween()
 			active_tween.tween_method(func(value):
-				if token == generation:
-					board.visual_positions[id] = value
-					board.queue_redraw(),previous,next,0.12)
+				if token == generation and board.visual_positions.has(id):
+					board.visual_positions[id].weight = value
+					board.queue_redraw(),0.0,1.0,0.12)
 			audio.play("move")
 			await get_tree().create_timer(0.13).timeout
-		previous = next
+		previous = cell
 	if token == generation:
 		board.visual_positions.erase(id)
 		board.queue_redraw()
@@ -572,10 +767,15 @@ func run_enemy_turn() -> void:
 			return
 		var target = battle.get_unit(str(plan.target_id))
 		var target_cell: Vector3i = target.get("cell",Vector3i.ZERO)
+		var attacker_snapshot = unit.duplicate(true)
+		var target_snapshot = target.duplicate(true)
 		var result = battle.commit_enemy(id,plan)
 		if result.get("ok",false):
+			await present_combat(attacker_snapshot,target_snapshot,Catalog.action(attacker_snapshot),result)
+			if token != generation:
+				return
+			busy = true
 			board.add_damage(target_cell,int(result.damage))
-			audio.play("hit")
 		battle_ui()
 		if not reduced_motion:
 			await get_tree().create_timer(0.2).timeout
@@ -598,7 +798,7 @@ func show_result_controls() -> void:
 	label("完成於第 %d 回合" % battle.turn)
 	label("敵軍已全數擊敗。" if victory else "我方已全軍覆沒。")
 	label("下次出戰將恢復全部 HP／MP。",14)
-	button("重新部署",func(): begin_deployment(level))
+	button("重新部署",func(): begin_deployment(level,battle.map.duplicate(true)))
 	button("返回選單",show_menu)
 	sync_board()
 	state_label.text = "戰鬥結束"
@@ -800,12 +1000,88 @@ func on_file_selected(path: String) -> void:
 		var error = store.export_map(path,editing_map)
 		notice("地圖已匯出。" if error.is_empty() else error)
 
+func focus_inspected() -> void:
+	var unit = battle.get_unit(inspected_id if not inspected_id.is_empty() else selection)
+	if not busy and not unit.is_empty():
+		board.focus_cell(unit.cell)
+
+func show_help() -> void:
+	if not busy:
+		help_dialog.popup_centered(Vector2i(680,540))
+
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not event is InputEventKey or not event.pressed or event.echo or mode != "BATTLE" or busy:
+	if not event is InputEventKey or not event.pressed or event.echo or busy:
 		return
-	if confirm_dialog.visible or file_dialog.visible:
+	if confirm_dialog.visible or file_dialog.visible or help_dialog.visible:
 		return
-	var shortcuts = {KEY_M:"MOVE",KEY_A:"ATTACK",KEY_S:"SKILL",KEY_W:"WAIT",KEY_ESCAPE:"CANCEL"}
-	if shortcuts.has(event.keycode):
-		on_radial_action(shortcuts[event.keycode])
+	if event.keycode == KEY_F1:
+		show_help()
 		get_viewport().set_input_as_handled()
+		return
+	if mode != "BATTLE":
+		return
+	if event.ctrl_pressed and event.keycode == KEY_S:
+		request_save_battle()
+		get_viewport().set_input_as_handled()
+		return
+	if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:
+		return
+	if event.keycode == KEY_HOME:
+		board.reset_camera()
+	elif event.keycode == KEY_F:
+		focus_inspected()
+	elif event.keycode == KEY_T:
+		show_all_threats = not show_all_threats
+		battle_ui()
+	elif event.keycode == KEY_ESCAPE and not inspected_id.is_empty():
+		cancel_selection()
+	else:
+		var shortcuts = {KEY_M:"MOVE",KEY_A:"ATTACK",KEY_S:"SKILL",KEY_W:"WAIT",KEY_ESCAPE:"CANCEL"}
+		if not shortcuts.has(event.keycode):
+			return
+		on_radial_action(shortcuts[event.keycode])
+	get_viewport().set_input_as_handled()
+
+func battle_save_path() -> String:
+	return store.storage_path.get_base_dir().path_join("battle.json")
+
+func request_save_battle() -> void:
+	if busy or mode != "BATTLE" or battle.phase != "PLAYER":
+		return
+	if FileAccess.file_exists(battle_save_path()):
+		confirm("覆寫先前的戰鬥存檔？上一份會保留為備份。",save_battle)
+	else:
+		save_battle()
+
+func save_battle() -> void:
+	if busy or mode != "BATTLE" or battle.phase != "PLAYER":
+		return
+	var error = Saves.write(battle_save_path(),Saves.snapshot(battle,level))
+	notice("戰鬥已儲存；可從主選單繼續。" if error.is_empty() else error)
+
+func load_battle(from_backup: bool = false) -> void:
+	if busy or mode != "MENU":
+		return
+	var loaded = Saves.read(battle_save_path()+(".bak" if from_backup else ""))
+	if not loaded.ok:
+		notice(loaded.message)
+		return
+	invalidate_animation()
+	Saves.restore(battle,loaded)
+	level = loaded.level.duplicate(true)
+	selection = ""
+	inspected_id = ""
+	action_mode = "COMMAND"
+	mode = "BATTLE"
+	board.reset_camera()
+	battle_ui()
+	notice("%s第 %d 回合；HP／MP 與已移動／已行動狀態均保留。" % ["已從備份恢復" if from_backup else "已繼續",battle.turn])
+
+func persist_preferences() -> void:
+	var error = preferences.save()
+	if not error.is_empty() and status_label != null:
+		notice("設定保存失敗："+error)
+
+func _exit_tree() -> void:
+	if settings_timer != null and not settings_timer.is_stopped():
+		preferences.save()

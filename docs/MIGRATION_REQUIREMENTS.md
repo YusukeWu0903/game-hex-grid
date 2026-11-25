@@ -21,7 +21,14 @@
 | R13 | 關卡編輯 | ui/main.gd、core/data_store.gd | 統一選角、敵軍配置、目標驗證 |
 | R14 | 保存與無效資料保護 | core/data_store.gd | 保存重讀、拒絕無效資料、保留暫時不可玩關卡 |
 | R15 | 戰鬥表現 | ui/hex_board.gd、ui/game_audio.gd | 移動、範圍、血魔條、傷害、回合與結果截圖 |
-| R16 | 測試與視覺驗收 | tests/、docs/VALIDATION.md | 249 項檢查通過；使用者視覺接受待試玩 |
+| R16 | 測試與視覺驗收 | tests/、docs/VALIDATION.md | 見 VALIDATION.md 最新核心、GUI、演出與續玩驗證；使用者視覺接受待試玩 |
+
+| R17 | 敵我檢視與威脅範圍 | core/battle_rules.gd、ui/main.gd | 合法攻擊獨立比對與實際點選 |
+| R18 | 鏡頭平移、定位、重置 | ui/hex_board.gd、ui/main.gd | 真實中鍵拖曳、F／Home、動畫中改尺寸 |
+| R19 | 全畫面雙方剪影演出 | ui/combat_cinematic.gd | 雙向、箭矢、技能、擊倒、跳過、減少動態 |
+| R20 | 戰鬥保存與備份恢復 | core/battle_save.gd | 損毀、無效狀態、失敗保護、16 組完整對戰續玩一致 |
+| R21 | 偏好與規則說明 | core/preferences.gd、ui/main.gd | 音量／演出偏好重讀、F1 說明 |
+| R22 | AI 繞路停滯修正 | core/battle_rules.gd | 原停滯位置、占位、成本、完全封閉測例 |
 
 ## 本次範圍外
 
@@ -39,6 +46,9 @@
 - ui/hex_board.gd：Control 自訂 2D 繪圖，與規則座標分離。
 - ui/main.gd：介面、輸入、動畫協調與編輯工具。
 - ui/game_audio.gd：本地合成音效。
+- ui/combat_cinematic.gd：只讀戰鬥快照的全畫面演出。
+- core/battle_save.gd：戰鬥快照驗證、保存及恢復。
+- core/preferences.gd：音效與演出偏好。
 
 保存路徑可透過 HEX_TACTICS_DATA_DIR 指定。Windows 啟動器預設使用專案 user_data；測試使用 D 槽獨立目錄。備份為 library.json.bak，原版不受影響。
 
@@ -53,3 +63,5 @@
 - Godot Web 匯出：https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html
 
 本版使用自訂 Dijkstra 以共用移動範圍與路徑計算，未依賴 TileMapLayer 或 AStar2D。Compatibility 與 GDScript 保留未來 Web 匯出選項，但未驗證 Web 包。
+
+介面視窗樣式依據：[Godot AcceptDialog](https://docs.godotengine.org/en/stable/classes/class_acceptdialog.html)、[Godot Window](https://docs.godotengine.org/en/stable/classes/class_window.html)。
