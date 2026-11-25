@@ -13,6 +13,7 @@ var impacted = false
 var active = false
 var skip_button: Button
 var portrait_cache: Dictionary = {}
+var portrait_bounds: Dictionary = {}
 const IMPACT_TIME = 1.20
 const DURATION = 2.65
 
@@ -121,8 +122,19 @@ func silhouette(unit: Dictionary, base: Vector2, facing: float, attack_offset: f
 	if portrait_cache[path] != null:
 		var texture: Texture2D = portrait_cache[path]
 		var image_size = texture.get_size()
-		var factor = minf(420.0/image_size.x,470.0/image_size.y)
-		draw_texture_rect(texture,Rect2(Vector2(-image_size.x*factor/2,-image_size.y*factor),image_size*factor),false,Color(1,1,1,alpha))
+		# Adopted mage/knight have different transparent padding. Cache visible bounds
+		# once so both soles share the stage baseline without altering source pixels.
+		if str(unit.get("id","")) in ["player_mage_01","player_knight_01"]:
+			if not portrait_bounds.has(path):
+				portrait_bounds[path] = Rect2(texture.get_image().get_used_rect())
+			var source: Rect2 = portrait_bounds[path]
+			if source.has_area():
+				var fit = minf(420.0/source.size.x,470.0/source.size.y)
+				var fitted = source.size*fit
+				draw_texture_rect_region(texture,Rect2(Vector2(-fitted.x/2,-fitted.y),fitted),source,Color(1,1,1,alpha))
+		else:
+			var factor = minf(420.0/image_size.x,470.0/image_size.y)
+			draw_texture_rect(texture,Rect2(Vector2(-image_size.x*factor/2,-image_size.y*factor),image_size*factor),false,Color(1,1,1,alpha))
 		draw_set_transform(Vector2.ZERO)
 		return
 	# Full-body, weapon-bearing job silhouettes; intentionally not final character art.
