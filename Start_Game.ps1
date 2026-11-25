@@ -10,7 +10,17 @@ if (-not (Test-Path -LiteralPath $enginePath)) {
 }
 $env:HEX_TACTICS_DATA_DIR = Join-Path $projectDirectory 'user_data'
 New-Item -ItemType Directory -Path $env:HEX_TACTICS_DATA_DIR -Force | Out-Null
-$gameArguments = @('--path', $projectDirectory, '--log-file', (Join-Path $env:HEX_TACTICS_DATA_DIR 'game.log'))
+$logPath = Join-Path $env:HEX_TACTICS_DATA_DIR 'game.log'
+# Start-Process joins native arguments; quote filesystem paths for spaces.
+$gameArguments = @('--path', ('"' + $projectDirectory + '"'), '--log-file', ('"' + $logPath + '"'))
 if ($SmokeTest) { $gameArguments += @('--headless', '--quit-after', '5') }
-& $enginePath @gameArguments
-if ($LASTEXITCODE -ne 0) { throw "Godot exited with code $LASTEXITCODE" }
+$launch = @{
+    FilePath = $enginePath
+    ArgumentList = $gameArguments
+    Wait = $true
+    PassThru = $true
+    WindowStyle = if ($SmokeTest) { 'Hidden' } else { 'Normal' }
+}
+# The normal path is the interactive game the user explicitly launches.
+$gameProcess = Start-Process @launch
+if ($gameProcess.ExitCode -ne 0) { throw "Godot exited with code $($gameProcess.ExitCode)" }

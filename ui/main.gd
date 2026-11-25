@@ -1083,5 +1083,8 @@ func persist_preferences() -> void:
 		notice("設定保存失敗："+error)
 
 func _exit_tree() -> void:
-	if settings_timer != null and not settings_timer.is_stopped():
+	generation += 1
+	if is_instance_valid(cinematic):
+		cinematic.abort()
+	if is_instance_valid(settings_timer) and not settings_timer.is_stopped():
 		preferences.save()

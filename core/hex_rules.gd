@@ -36,32 +36,68 @@ static func terrain_cost(map: Dictionary, c: Vector3i) -> int:
 
 # Dijkstra is shared by player range, AI destinations and route reconstruction.
 # All costs are logical terrain costs, never screen distances.
+static func heap_less(a: Array, b: Array) -> bool:
+	return a[0]<b[0] or (a[0]==b[0] and a[1]<b[1])
+
+static func heap_push(heap: Array, entry: Array) -> void:
+	var index = heap.size()
+	heap.append(entry)
+	while index>0:
+		var parent = (index-1)/2
+		if not heap_less(entry,heap[parent]):
+			break
+		heap[index] = heap[parent]
+		index = parent
+	heap[index] = entry
+
+static func heap_pop(heap: Array) -> Array:
+	var first: Array = heap[0]
+	var last: Array = heap.pop_back()
+	if heap.is_empty():
+		return first
+	var index = 0
+	while index*2+1<heap.size():
+		var child = index*2+1
+		if child+1<heap.size() and heap_less(heap[child+1],heap[child]):
+			child += 1
+		if not heap_less(heap[child],last):
+			break
+		heap[index] = heap[child]
+		index = child
+	heap[index] = last
+	return first
+
 static func search(map: Dictionary, start: Vector3i, budget: int, blocked: Dictionary = {}) -> Dictionary:
-	var costs = {key(start): 0}
+	var start_key = key(start)
+	var costs = {start_key:0}
 	var previous = {}
-	var queue: Array[Vector3i] = [start]
+	var insertion_order = {start_key:0}
+	var queue: Array = [[0,0,start]]
 	while not queue.is_empty():
-		var best = 0
-		for i in range(1, queue.size()):
-			if costs[key(queue[i])] < costs[key(queue[best])]:
-				best = i
-		var current = queue[best]
-		queue.remove_at(best)
+		var entry = heap_pop(queue)
+		var current: Vector3i = entry[2]
+		var current_key = key(current)
+		var current_cost = int(entry[0])
+		if current_cost != int(costs[current_key]):
+			continue
 		for direction in DIRECTIONS:
-			var next: Vector3i = current + direction
+			var next: Vector3i = current+direction
 			var next_key = key(next)
-			var step = terrain_cost(map, next)
-			if step < 0 or blocked.has(next_key):
+			var step = terrain_cost(map,next)
+			if step<0 or blocked.has(next_key):
 				continue
-			var total = int(costs[key(current)]) + step
-			if total > budget:
+			var total = current_cost+step
+			if total>budget:
 				continue
-			if not costs.has(next_key) or total < int(costs[next_key]):
+			if not costs.has(next_key) or total<int(costs[next_key]):
+				if not insertion_order.has(next_key):
+					insertion_order[next_key] = insertion_order.size()
 				costs[next_key] = total
-				previous[next_key] = key(current)
-				if not queue.has(next):
-					queue.append(next)
-	return {"costs": costs, "previous": previous, "start": key(start)}
+				previous[next_key] = current_key
+				# Reuse first-discovery order when decreasing a cost. This preserves
+				# the old queue's deterministic ties while avoiding linear scans.
+				heap_push(queue,[total,insertion_order[next_key],next])
+	return {"costs":costs,"previous":previous,"start":start_key}
 
 static func route(search_result: Dictionary, target: Vector3i) -> Array[Vector3i]:
 	var result: Array[Vector3i] = []

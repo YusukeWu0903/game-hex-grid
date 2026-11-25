@@ -146,21 +146,31 @@ static func plan_ai(map: Dictionary, actor: Dictionary, units: Array, action: Di
 	return strategic if not strategic.is_empty() else (best if not best.is_empty() else none)
 
 static func approach_plan(map: Dictionary, actor: Dictionary, units: Array, targets: Array, action: Dictionary) -> Dictionary:
+	if actor.get("acted",false) or int(actor.get("hp",0))<=0 or targets.is_empty() or int(actor.get("mp",0))<int(action.get("mp_cost",0)):
+		return {}
 	var search = Hex.search(map,actor.cell,Hex.cells(int(map.radius)).size()*2,occupied(units,str(actor.id)))
+	# Build only the cells that can actually fire at a target, then retain search
+	# insertion order for deterministic tie-breaking. Avoid hundreds of cloned
+	# actors and formatted rejection strings on large maps.
+	var firing_cells = {}
+	var offsets = Hex.cells(int(action.range_max)).filter(func(offset): return Hex.distance(Vector3i.ZERO,offset)>=int(action.range_min))
+	for target in targets:
+		for offset in offsets:
+			var key = Hex.key(target.cell+offset)
+			if search.costs.has(key):
+				firing_cells[key] = mini(int(firing_cells.get(key,target.hp)),int(target.hp))
 	var best_cell = ""
 	var best_cost = INF
 	var best_hp = INF
 	for key in search.costs:
-		var candidate = actor.duplicate(true)
-		candidate.cell = Hex.cell(key)
-		for target in targets:
-			if not can_attack(candidate,target,action):
-				continue
-			var cost = int(search.costs[key])
-			if cost<best_cost or (cost==best_cost and target.hp<best_hp):
-				best_cost = cost
-				best_hp = target.hp
-				best_cell = key
+		if not firing_cells.has(key):
+			continue
+		var cost = int(search.costs[key])
+		var hp = int(firing_cells[key])
+		if cost<best_cost or (cost==best_cost and hp<best_hp):
+			best_cost = cost
+			best_hp = hp
+			best_cell = key
 	if best_cell.is_empty():
 		return {}
 	var route = Hex.route(search,Hex.cell(best_cell))

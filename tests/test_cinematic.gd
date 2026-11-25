@@ -72,6 +72,7 @@ func run() -> void:
 	app.cinematic.advance(1.08)
 	await capture("cinematic-04-arrow")
 	app.cinematic.skip()
+	archer.hp = 7
 	app.cinematic.begin(player,archer,Catalog.action(player,true),7,0,false)
 	app.cinematic.advance(1.5)
 	await capture("cinematic-05-skill-kill")

@@ -53,6 +53,6 @@
 
 ## 測試
 
-執行 powershell -ExecutionPolicy Bypass -File ./Run_Tests.ps1。預設 UI 測試會短暫開啟實際 Godot 視窗並截圖；可加 -HeadlessUI 只跑無畫面流程。測試使用隔離資料，截圖與日誌位於 D:/Codex/visualizations/2026-11-25/hex-tactics-foundation 下的獨立 run 目錄。
+執行 powershell -ExecutionPolicy Bypass -File ./Run_Tests.ps1。預設 UI 測試會短暫開啟實際 Godot 視窗並截圖；可加 -HeadlessUI 只跑無畫面流程。加 `-FullPlaythrough` 會額外使用實際鼠鍵事件完整打完兩張地圖，交錯自然播放與跳過演出（約一分鐘）。測試使用隔離資料，截圖與日誌位於 D:/Codex/visualizations/2026-11-25/hex-tactics-foundation 下的獨立 run 目錄。
 
 目前支援 Windows 鍵鼠，最小視窗 1100×720。Compatibility 渲染器已在本機執行；Web、手機、控制器操作與其他平台尚未驗證。人工檢視截圖不等同使用者已接受畫面與操作。

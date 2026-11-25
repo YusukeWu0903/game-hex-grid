@@ -17,8 +17,10 @@ func _init(file_path: String) -> void:
 		file.close()
 		error = "設定檔過大，使用預設值。"
 		return
-	var data = JSON.parse_string(file.get_as_text())
+	var parser = JSON.new()
+	var parsed = parser.parse(file.get_as_text())
 	file.close()
+	var data = parser.data if parsed==OK else null
 	if not data is Dictionary or data.get("version") != 1:
 		error = "設定檔無效，使用預設值；原檔保留。"
 		return

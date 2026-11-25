@@ -22,7 +22,6 @@
 | R14 | 保存與無效資料保護 | core/data_store.gd | 保存重讀、拒絕無效資料、保留暫時不可玩關卡 |
 | R15 | 戰鬥表現 | ui/hex_board.gd、ui/game_audio.gd | 移動、範圍、血魔條、傷害、回合與結果截圖 |
 | R16 | 測試與視覺驗收 | tests/、docs/VALIDATION.md | 見 VALIDATION.md 最新核心、GUI、演出與續玩驗證；使用者視覺接受待試玩 |
-
 | R17 | 敵我檢視與威脅範圍 | core/battle_rules.gd、ui/main.gd | 合法攻擊獨立比對與實際點選 |
 | R18 | 鏡頭平移、定位、重置 | ui/hex_board.gd、ui/main.gd | 真實中鍵拖曳、F／Home、動畫中改尺寸 |
 | R19 | 全畫面雙方剪影演出 | ui/combat_cinematic.gd | 雙向、箭矢、技能、擊倒、跳過、減少動態 |
@@ -62,6 +61,6 @@
 - Godot TileSet：https://docs.godotengine.org/en/stable/classes/class_tileset.html
 - Godot Web 匯出：https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html
 
-本版使用自訂 Dijkstra 以共用移動範圍與路徑計算，未依賴 TileMapLayer 或 AStar2D。Compatibility 與 GDScript 保留未來 Web 匯出選項，但未驗證 Web 包。
+本版使用自訂 Dijkstra 與保留同分順序的優先佇列，共用移動範圍與路徑計算，未依賴 TileMapLayer 或 AStar2D。Compatibility 與 GDScript 保留未來 Web 匯出選項，但未驗證 Web 包。
 
 介面視窗樣式依據：[Godot AcceptDialog](https://docs.godotengine.org/en/stable/classes/class_acceptdialog.html)、[Godot Window](https://docs.godotengine.org/en/stable/classes/class_window.html)。

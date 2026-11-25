@@ -17,7 +17,9 @@ func capture() -> void:
 	var archer = Catalog.player("player_archer_01",Vector3i.ZERO)
 	var foe = Catalog.enemy("enemy_swordsman_base",0,Vector3i.ZERO)
 	var bow = Catalog.enemy("enemy_archer_base",0,Vector3i.ZERO)
-	var cases = [[sword,foe,false,4,8],[bow,sword,false,3,9],[archer,foe,true,6,0]]
+	var wounded = foe.duplicate(true)
+	wounded.hp = 6
+	var cases = [[sword,foe,false,4,8],[bow,sword,false,3,9],[archer,wounded,true,6,0]]
 	var frame = 0
 	for entry in cases:
 		app.cinematic.begin(entry[0],entry[1],Catalog.action(entry[0],entry[2]),entry[3],entry[4],false)
