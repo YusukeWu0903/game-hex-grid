@@ -12,6 +12,7 @@ func check(value: bool, message: String) -> void:
 		push_error(message)
 
 func _initialize() -> void:
+	root.size = Vector2i(1440,900)
 	call_deferred("run")
 
 func capture(name: String) -> void:
@@ -29,18 +30,18 @@ func press_button(text: String) -> bool:
 			var position = child.get_global_rect().get_center()
 			var motion = InputEventMouseMotion.new()
 			motion.position = position
-			Input.parse_input_event(motion)
+			root.push_input(motion, true)
 			var down = InputEventMouseButton.new()
 			down.button_index = MOUSE_BUTTON_LEFT
 			down.position = position
 			down.pressed = true
-			Input.parse_input_event(down)
+			root.push_input(down, true)
 			await process_frame
 			var up = InputEventMouseButton.new()
 			up.button_index = MOUSE_BUTTON_LEFT
 			up.position = position
 			up.pressed = false
-			Input.parse_input_event(up)
+			root.push_input(up, true)
 			await process_frame
 			return true
 	return false
@@ -64,6 +65,7 @@ func run() -> void:
 	var p = app.battle.units.filter(func(u):return u.faction == "PLAYER")[0]
 	app.select_unit(p.id)
 	await capture("03-movement")
+	app.choose_action("MOVE")
 	var search = app.battle.reachable(p.id)
 	var destination = p.cell
 	for key in search.costs:

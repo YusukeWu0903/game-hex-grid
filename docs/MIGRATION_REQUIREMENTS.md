@@ -13,7 +13,7 @@
 | R05 | 單一隊伍 ID 來源 | data/catalog.json、core/catalog.gd | 未選角色不可部署，選角保存重讀一致 |
 | R06 | 安全部署 | core/battle_session.gd | 缺少角色、出生點不足、重疊皆拒絕 |
 | R07 | 完整戰鬥循環 | core/battle_session.gd、ui/main.gd | 兩張地圖完整模擬、勝敗 UI、重試 |
-| R08 | 明確的移動、攻擊、技能、待機、取消 | ui/main.gd | 無效點擊不結束行動，取消保留移動 |
+| R08 | 角色旁五鍵環狀圖示指令 | ui/main.gd、ui/radial_actions.gd、ui/action_icon_button.gd | 方位、收合、取消兩層、停用狀態、邊界與縮放皆有測例 |
 | R09 | MP 與射程雙重驗證 | core/battle_rules.gd | MP14／15、射程1／2／3／4、不得重複攻擊 |
 | R10 | 動畫鎖定與舊流程隔離 | ui/main.gd | 連點鎖定、敵方回合退出再重開測例 |
 | R11 | 合法 AI | core/battle_rules.gd | 森林移動成本、貼身弓手退到射程 |
@@ -21,7 +21,7 @@
 | R13 | 關卡編輯 | ui/main.gd、core/data_store.gd | 統一選角、敵軍配置、目標驗證 |
 | R14 | 保存與無效資料保護 | core/data_store.gd | 保存重讀、拒絕無效資料、保留暫時不可玩關卡 |
 | R15 | 戰鬥表現 | ui/hex_board.gd、ui/game_audio.gd | 移動、範圍、血魔條、傷害、回合與結果截圖 |
-| R16 | 測試與視覺驗收 | tests/、docs/VALIDATION.md | 173 項檢查通過；使用者視覺接受待試玩 |
+| R16 | 測試與視覺驗收 | tests/、docs/VALIDATION.md | 249 項檢查通過；使用者視覺接受待試玩 |
 
 ## 本次範圍外
 

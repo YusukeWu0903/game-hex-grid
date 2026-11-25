@@ -6,11 +6,13 @@ const Session = preload("res://core/battle_session.gd")
 const Store = preload("res://core/data_store.gd")
 const Board = preload("res://ui/hex_board.gd")
 const Audio = preload("res://ui/game_audio.gd")
+const RadialActions = preload("res://ui/radial_actions.gd")
 
 var store
 var battle
 var board
 var audio
+var radial_actions
 var sidebar: VBoxContainer
 var state_label: Label
 var status_label: Label
@@ -138,6 +140,10 @@ func build_shell() -> void:
 	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board.custom_minimum_size = Vector2(400,400)
 	board_column.add_child(board)
+	radial_actions = RadialActions.new()
+	board.add_child(radial_actions)
+	radial_actions.board = board
+	radial_actions.action_requested.connect(on_radial_action)
 	board.cell_clicked.connect(on_cell_clicked)
 	board.cell_hovered.connect(on_cell_hovered)
 	detail_label = Label.new()
@@ -203,6 +209,8 @@ func invalidate_animation() -> void:
 	if active_tween != null and active_tween.is_valid():
 		active_tween.kill()
 	board.visual_positions.clear()
+	if radial_actions != null:
+		radial_actions.hide()
 	board.effects.clear()
 	busy = false
 
@@ -320,22 +328,6 @@ func battle_ui() -> void:
 		label(selected.name + " · " + Catalog.data().jobs[selected.job].name,20)
 		label("HP %d / %d    MP %d / %d" % [selected.hp,selected.max_hp,selected.mp,selected.max_mp])
 		label("已行動" if selected.acted else ("已移動 · 尚可行動" if selected.moved else "尚未移動或行動"),14)
-		var disabled = busy or not battle.can_control(selection)
-		move_button = button("移動",func(): choose_action("MOVE"),disabled or selected.moved)
-		move_button.toggle_mode = true
-		move_button.button_pressed = action_mode == "MOVE"
-		attack_button = button("攻擊  ·  4 傷害",func(): choose_action("ATTACK"),disabled)
-		attack_button.toggle_mode = true
-		attack_button.button_pressed = action_mode == "ATTACK"
-		var skill = Catalog.action(selected,true)
-		skill_button = button("%s  ·  %d MP" % [skill.name,skill.mp_cost],func(): choose_action("SKILL"),disabled or selected.mp < skill.mp_cost)
-		skill_button.toggle_mode = true
-		skill_button.button_pressed = action_mode == "SKILL"
-		skill_button.tooltip_text = "%d 傷害，射程 %d–%d" % [skill.damage,skill.range_min,skill.range_max]
-		if selected.mp < skill.mp_cost:
-			label("技能 MP 不足（需要 %d）" % skill.mp_cost,13)
-		wait_button = button("待機",wait_selected,disabled)
-		button("取消選取",cancel_selection,busy)
 	sidebar.add_child(HSeparator.new())
 	for unit in battle.units:
 		if unit.faction == "PLAYER":
@@ -343,19 +335,39 @@ func battle_ui() -> void:
 				func(): select_unit(unit.id),busy or battle.phase != "PLAYER" or unit.acted)
 	button("結束我方回合",func(): confirm("讓尚未行動的角色全部待機？",end_turn),busy or battle.phase != "PLAYER")
 	button("返回選單",func(): confirm("離開這場戰鬥？下次出戰會恢復全部 HP／MP。",show_menu))
-	label("右鍵 / Esc：取消\n滾輪：縮放",13)
+	label("右鍵 / Esc：返回或取消\n滾輪：縮放",13)
 	sync_board()
+
+func sync_radial_actions() -> void:
+	move_button = radial_actions.buttons.MOVE
+	attack_button = radial_actions.buttons.ATTACK
+	skill_button = radial_actions.buttons.SKILL
+	wait_button = radial_actions.buttons.WAIT
+	var selected = selected_unit()
+	if mode == "BATTLE" and action_mode == "COMMAND" and not busy and battle.can_control(selection):
+		radial_actions.configure(selected)
+	else:
+		radial_actions.hide()
+
+func on_radial_action(action: String) -> void:
+	if busy or mode != "BATTLE" or not battle.can_control(selection):
+		return
+	audio.play("click")
+	match action:
+		"WAIT": wait_selected()
+		"CANCEL": cancel_selection()
+		_: choose_action(action)
 
 func select_unit(id: String) -> void:
 	if busy or not battle.can_control(id):
 		return
 	selection = id
-	action_mode = "ATTACK" if battle.get_unit(id).moved else "MOVE"
+	action_mode = "COMMAND"
 	battle_ui()
-	notice("選擇目的地，或使用左側的攻擊、技能、待機。")
+	notice("在角色周圍選擇指令；滑鼠停留可查看名稱與消耗。")
 
 func choose_action(value: String) -> void:
-	if busy or not battle.can_control(selection):
+	if busy or not battle.can_control(selection) or value not in ["MOVE","ATTACK","SKILL"]:
 		return
 	var unit = selected_unit()
 	if value == "MOVE" and unit.moved:
@@ -365,14 +377,14 @@ func choose_action(value: String) -> void:
 		return
 	action_mode = value
 	battle_ui()
-	notice("點選可達格移動。" if value == "MOVE" else "點選紅色範圍內的敵人；右鍵取消瞄準。")
+	notice("點選可達格移動；右鍵 / Esc 返回行動選單。" if value == "MOVE" else "點選紅色範圍內的敵人；右鍵 / Esc 返回行動選單。")
 
 func cancel_selection() -> void:
 	if busy:
 		return
-	if action_mode in ["ATTACK","SKILL"] and not selection.is_empty():
-		action_mode = "IDLE"
-		notice("已取消瞄準；可重新選擇攻擊、技能或待機。")
+	if action_mode in ["MOVE","ATTACK","SKILL"] and not selection.is_empty():
+		action_mode = "COMMAND"
+		notice("已返回角色行動選單；尚未消耗的行動保留。")
 	else:
 		selection = ""
 		action_mode = "MOVE"
@@ -419,7 +431,7 @@ func sync_board() -> void:
 	if mode == "BATTLE":
 		state_label.text = "第 %d 回合  ·  %s" % [battle.turn,"我方回合" if battle.phase == "PLAYER" else "敵方回合"]
 		context_label.text = "%s  ·  目標：擊敗全部敵人" % battle.map.name
-		detail_label.text = "選擇我方角色，使用移動、攻擊、技能或待機；右鍵取消。"
+		detail_label.text = "選擇角色，在棋子周圍下達指令；右鍵 / Esc 返回或取消。"
 		var unit = selected_unit()
 		if not busy and not unit.is_empty() and battle.can_control(selection):
 			if action_mode == "MOVE":
@@ -432,6 +444,7 @@ func sync_board() -> void:
 						var distance = Hex.distance(unit.cell,cell)
 						if distance >= action.range_min and distance <= action.range_max:
 							board.target_cells[Hex.key(cell)] = true
+	sync_radial_actions()
 	board.queue_redraw()
 
 func on_cell_hovered(cell: Vector3i) -> void:
@@ -503,9 +516,9 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 		if token != generation:
 			return
 		busy = false
-		action_mode = "ATTACK"
+		action_mode = "COMMAND"
 		battle_ui()
-		notice("移動完成。選擇攻擊、技能或待機。")
+		notice("移動完成。從角色周圍選擇攻擊、技能或待機。")
 	elif action_mode in ["ATTACK","SKILL"]:
 		var result = battle.attack(selection,str(clicked.get("id","")),action_mode == "SKILL")
 		if not result.ok:
@@ -788,7 +801,11 @@ func on_file_selected(path: String) -> void:
 		notice("地圖已匯出。" if error.is_empty() else error)
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE and mode == "BATTLE":
-			cancel_selection()
-			get_viewport().set_input_as_handled()
+	if not event is InputEventKey or not event.pressed or event.echo or mode != "BATTLE" or busy:
+		return
+	if confirm_dialog.visible or file_dialog.visible:
+		return
+	var shortcuts = {KEY_M:"MOVE",KEY_A:"ATTACK",KEY_S:"SKILL",KEY_W:"WAIT",KEY_ESCAPE:"CANCEL"}
+	if shortcuts.has(event.keycode):
+		on_radial_action(shortcuts[event.keycode])
+		get_viewport().set_input_as_handled()

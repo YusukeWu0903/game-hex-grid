@@ -13,10 +13,10 @@ New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
 $env:HEX_TACTICS_TEST_DIR = Join-Path $runDirectory 'evidence'
 $env:HEX_TACTICS_DATA_DIR = Join-Path $runDirectory 'ui-data'
 New-Item -ItemType Directory -Path $env:HEX_TACTICS_TEST_DIR -Force | Out-Null
-foreach ($testName in @('test_hex_rules','test_battle_rules','test_session','test_ui')) {
+foreach ($testName in @('test_hex_rules','test_battle_rules','test_session','test_ui','test_radial_ui')) {
     $logPath = Join-Path $runDirectory ($testName + '.log')
     $engineArguments = @('--path', $PSScriptRoot, '--script', ('res://tests/' + $testName + '.gd'), '--log-file', $logPath)
-    if ($testName -ne 'test_ui' -or $HeadlessUI) { $engineArguments += '--headless' }
+    if ($testName -notin @('test_ui','test_radial_ui') -or $HeadlessUI) { $engineArguments += '--headless' }
     else { $engineArguments += @('--resolution','1440x900','--position','100,50') }
     & $GodotPath @engineArguments
     $testExit = $LASTEXITCODE
