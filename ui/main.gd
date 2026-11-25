@@ -14,6 +14,11 @@ var performance_clock = 0.0
 const Hex = preload("res://core/hex_rules.gd")
 const Rules = preload("res://core/battle_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
+const Party = preload("res://core/party_store.gd")
+const RPGUI = preload("res://ui/rpg_ui.gd")
+var party
+var selected_item = ""
+var party_selected = "player_swordsman_01"
 const Session = preload("res://core/battle_session.gd")
 const Store = preload("res://core/data_store.gd")
 const Board = preload("res://ui/hex_board.gd")
@@ -71,6 +76,7 @@ func _ready() -> void:
 	Engine.max_fps = 60
 	get_window().min_size = Vector2i(1100,720)
 	store = Store.new()
+	party = Party.new(store.storage_path.get_base_dir().path_join("party.json"))
 	preferences = Preferences.new(store.storage_path.get_base_dir().path_join("settings.json"))
 	reduced_motion = preferences.values.reduced_motion
 	combat_cinematics = preferences.values.cinematics
@@ -362,6 +368,8 @@ func invalidate_animation() -> void:
 	if radial_actions != null:
 		radial_actions.hide()
 	board.effects.clear()
+	board.opened_chests = {}
+	board.area_cells = {}
 	board.threat_cells.clear()
 	board.inspected_id = ""
 	inspected_id = ""
@@ -379,6 +387,7 @@ func show_menu() -> void:
 	board.reachable = {}
 	board.target_cells = {}
 	board.path = []
+	board.area_cells = {}
 	board.show_spawns = false
 	board.show_coordinates = false
 	var preview = store.map_by_id(level.get("mapId","map_custom"))
@@ -405,6 +414,7 @@ func show_menu() -> void:
 	if FileAccess.file_exists(battle_save_path()+".bak"):
 		button("讀取上一份備份",func(): load_battle(true))
 	sidebar.add_child(HSeparator.new())
+	button("隊伍／裝備／道具",func(): RPGUI.show_party(self))
 	button("關卡編輯",func(): open_level_editor(level))
 	button("地圖編輯",func(): open_map_editor(board.map))
 	label("滑鼠滾輪縮放棋盤",13)
@@ -424,6 +434,8 @@ func begin_deployment(config: Dictionary, map_override: Dictionary = {}) -> void
 	if not prepared.is_empty():
 		notice("\n".join(prepared))
 		return
+	battle.inventory = party.inventory.duplicate(true)
+	battle.loadouts = party.loadouts.duplicate(true)
 	level = config.duplicate(true)
 	board.reset_camera()
 	mode = "DEPLOYMENT"
@@ -487,6 +499,7 @@ func battle_ui() -> void:
 		return
 	label("第 %d 回合" % battle.turn,23)
 	label("我方回合" if battle.phase == "PLAYER" else "敵方行動中",18)
+	RPGUI.add_rewind(self)
 	var selected = battle.get_unit(inspected_id) if not inspected_id.is_empty() else selected_unit()
 	if selected.is_empty():
 		label("選擇我方角色；點敵人查看資料")
@@ -496,15 +509,17 @@ func battle_ui() -> void:
 		label("已行動" if selected.acted else ("已移動 · 尚可行動" if selected.moved else "尚未移動或行動"),14)
 		label("我方" if selected.faction == "PLAYER" else "敵方 · 下次行動威脅以紫紅色標示",14)
 		var normal = Catalog.action(selected)
-		label("移動 %d  ·  普攻 %d 傷害
+		label("移動 %d  ·  普攻威力 %d
 射程 %d–%d 格" % [selected.movement,normal.damage,normal.range_min,normal.range_max],14)
 		if selected.faction == "PLAYER":
 			var skill = Catalog.action(selected,true)
+			if skill.get("effect","")=="guard": label("盾牆：物防／魔防 +%d，維持到下次我方回合" % skill.guard,14)
 			label("%s · %d MP
-%d 傷害 · 射程 %d–%d 格" % [skill.name,skill.mp_cost,skill.damage,skill.range_min,skill.range_max],14)
+威力 %d · 射程 %d–%d 格" % [skill.name,skill.mp_cost,skill.damage,skill.range_min,skill.range_max],14)
 		else:
-			label("目前敵方使用普通攻擊。",13)
+			label("敵方依法術資源與職業規劃行動。",13)
 
+	RPGUI.battle_controls(self)
 	sidebar.add_child(HSeparator.new())
 	for unit in battle.units:
 		if unit.faction == "PLAYER":
@@ -544,6 +559,7 @@ func on_radial_action(action: String) -> void:
 	match action:
 		"WAIT": wait_selected()
 		"CANCEL": cancel_selection()
+		"ITEM", "CHEST": choose_action(action)
 		_: choose_action(action)
 
 func select_unit(id: String) -> void:
@@ -557,23 +573,32 @@ func select_unit(id: String) -> void:
 	notice("在角色周圍選擇指令；滑鼠停留可查看名稱與消耗。")
 
 func choose_action(value: String) -> void:
-	if busy or not battle.can_control(selection) or value not in ["MOVE","ATTACK","SKILL"]:
+	if busy or not battle.can_control(selection) or value not in ["MOVE","ATTACK","SKILL","ITEM","CHEST"]:
 		return
 	var unit = selected_unit()
+	if value=="ATTACK" and unit.mp<int(Catalog.action(unit).mp_cost):
+		notice("MP 不足，無法施放魔彈。")
+		return
 	if value == "MOVE" and unit.moved:
 		return
 	if value == "SKILL" and unit.mp < Catalog.action(unit,true).mp_cost:
 		notice("MP 不足，無法施放技能。")
 		return
+	if value=="SKILL" and Catalog.action(unit,true).get("effect","")=="guard":
+		if battle.guard_unit(selection):
+			selection = ""
+			after_action()
+		return
 	action_mode = value
+	selected_item = ""
 	battle_ui()
-	notice("點選可達格移動；右鍵 / Esc 返回行動選單。" if value == "MOVE" else "點選紅色範圍內的敵人；右鍵 / Esc 返回行動選單。")
+	notice({"MOVE":"點選可達格移動。","ITEM":"選擇左側道具，再點自己或相鄰友軍。","CHEST":"點選自己或相鄰格的未開啟寶箱。"}.get(value,"點選射程內的敵人。")+"右鍵 / Esc 返回行動選單。")
 
 func cancel_selection() -> void:
 	if busy:
 		return
 	inspected_id = ""
-	if action_mode in ["MOVE","ATTACK","SKILL"] and not selection.is_empty():
+	if action_mode in ["MOVE","ATTACK","SKILL","ITEM","CHEST"] and not selection.is_empty():
 		action_mode = "COMMAND"
 		notice("已返回角色行動選單；尚未消耗的行動保留。")
 	else:
@@ -603,6 +628,8 @@ func after_action() -> void:
 		selection = ""
 		if battle.result == "VICTORY":
 			audio.play("victory")
+			var settlement_error = party.claim(battle)
+			if not settlement_error.is_empty(): notice(settlement_error)
 		battle_ui()
 		return
 	battle_ui()
@@ -610,10 +637,12 @@ func after_action() -> void:
 		run_enemy_turn()
 
 func sync_board() -> void:
+	board.area_cells = {}
 	if mode in ["BATTLE","DEPLOYMENT","RESULT"]:
 		board.map = battle.map
 		board.invalid_cells = {}
 		board.units = battle.units
+		board.opened_chests = battle.opened_chests
 	board.selected_id = selection
 	board.inspected_id = inspected_id
 	board.camera_locked = busy
@@ -643,10 +672,12 @@ func sync_board() -> void:
 						var distance = Hex.distance(unit.cell,cell)
 						if distance >= action.range_min and distance <= action.range_max:
 							board.target_cells[Hex.key(cell)] = true
+	RPGUI.sync_targets(self)
 	sync_radial_actions()
 	board.queue_redraw()
 
 func on_cell_hovered(cell: Vector3i) -> void:
+	board.area_cells = {}
 	hover_cell = cell
 	if not Hex.inside(cell,int(board.map.get("radius",0))):
 		detail_label.text = ""
@@ -667,7 +698,12 @@ func on_cell_hovered(cell: Vector3i) -> void:
 		elif action_mode in ["ATTACK","SKILL"] and not target.is_empty():
 			var action = Catalog.action(unit,action_mode == "SKILL")
 			if Rules.can_attack(unit,target,action):
-				detail += "  |  預計 %d 傷害 → HP %d%s" % [action.damage,maxi(0,target.hp-action.damage)," · 可擊倒" if target.hp<=action.damage else ""]
+				var damage = Rules.damage_for(unit,target,action)
+				detail += "  |  預計 %d 傷害 → HP %d%s" % [damage,maxi(0,target.hp-damage)," · 可擊倒" if target.hp<=damage else ""]
+				if int(action.get("radius",0))>0:
+					for offset in Hex.cells(int(action.radius)):
+						if Hex.inside(cell+offset,battle.map.radius): board.area_cells[Hex.key(cell+offset)] = true
+					detail += " · 範圍內只傷敵人"
 			else:
 				detail += "  |  "+Rules.attack_error(unit,target,action)
 	detail_label.text = detail
@@ -697,6 +733,19 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 		cancel_selection()
 		return
 	if mouse_button != MOUSE_BUTTON_LEFT:
+		return
+	if action_mode=="CHEST":
+		if battle.open_chest(selection,cell):
+			selection = ""
+			after_action()
+		else: notice("請選自己或相鄰格的未開啟寶箱；行動未消耗。")
+		return
+	if action_mode=="ITEM":
+		var friend = Rules.unit_at(battle.units,cell)
+		if battle.use_item(selection,str(friend.get("id","")),selected_item):
+			selection = ""
+			after_action()
+		else: notice("先選道具，再點需要回復的自己或相鄰友軍；無效操作不消耗。")
 		return
 	var clicked = Rules.unit_at(battle.units,cell)
 	if not clicked.is_empty() and (selection.is_empty() or action_mode == "COMMAND") and not battle.can_control(clicked.id):
@@ -741,7 +790,8 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 		await present_combat(attacker_snapshot,target_snapshot,attack_action,result)
 		if token != generation:
 			return
-		board.add_damage(cell,int(result.damage))
+		for hit in result.get("hits",[{"cell":cell,"damage":result.damage}]):
+			board.add_damage(hit.cell,int(hit.damage))
 		selection = ""
 		action_mode = "MOVE"
 		after_action()
@@ -805,7 +855,7 @@ func run_enemy_turn() -> void:
 		var target_snapshot = target.duplicate(true)
 		var result = battle.commit_enemy(id,plan)
 		if result.get("ok",false):
-			await present_combat(attacker_snapshot,target_snapshot,Catalog.action(attacker_snapshot),result)
+			await present_combat(attacker_snapshot,target_snapshot,Catalog.action(attacker_snapshot,bool(plan.get("skill",false))),result)
 			if token != generation:
 				return
 			busy = true
@@ -831,6 +881,7 @@ func show_result_controls() -> void:
 	label("VICTORY" if victory else "DEFEAT",18)
 	label("完成於第 %d 回合" % battle.turn)
 	label("敵軍已全數擊敗。" if victory else "我方已全軍覆沒。")
+	RPGUI.result_controls(self)
 	label("下次出戰將恢復全部 HP／MP。",14)
 	button("重新部署",func(): begin_deployment(level,battle.map.duplicate(true)))
 	button("返回選單",show_menu)
@@ -960,7 +1011,7 @@ func render_map_editor() -> void:
 	sidebar.add_child(name_input)
 	name_input.text_changed.connect(func(value): editing_map.name = value)
 	label("地形筆刷",18)
-	var names = {"PLAIN":"平地 · 1","FOREST":"森林 · 2","SWAMP":"沼澤 · 2","HILLS":"丘陵 · 2","MOUNTAIN":"山脈 · 禁行","WATER":"水域 · 禁行","PLAYER":"我方出生點","ENEMY":"敵方出生點","CLEAR":"清除出生點"}
+	var names = {"CHEST":"放置木寶箱","ERASE_CHEST":"移除寶箱","PLAIN":"平地 · 1","FOREST":"森林 · 2","SWAMP":"沼澤 · 2","HILLS":"丘陵 · 2","MOUNTAIN":"山脈 · 禁行","WATER":"水域 · 禁行","PLAYER":"我方出生點","ENEMY":"敵方出生點","CLEAR":"清除出生點"}
 	var brushes = GridContainer.new()
 	brushes.columns = 2
 	sidebar.add_child(brushes)
@@ -1077,7 +1128,12 @@ func paint_cell(cell: Vector3i) -> void:
 	if not stroke_active:
 		map_editor.checkpoint(editing_map)
 		stroke_active = true
-	map_editor.paint(editing_map,cell,brush,brush_radius,fill_brush)
+	if brush in ["CHEST","ERASE_CHEST"]:
+		if not editing_map.has("chests"): editing_map.chests = {}
+		if brush=="ERASE_CHEST": editing_map.chests.erase(Hex.key(cell))
+		elif Hex.terrain_cost(editing_map,cell)>0: editing_map.chests[Hex.key(cell)] = "wooden"
+	else:
+		map_editor.paint(editing_map,cell,brush,brush_radius,fill_brush)
 	board.invalidate_terrain()
 	board.invalid_cells = {}
 	board.queue_redraw()
@@ -1163,7 +1219,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif event.keycode == KEY_ESCAPE and not inspected_id.is_empty():
 		cancel_selection()
 	else:
-		var shortcuts = {KEY_M:"MOVE",KEY_A:"ATTACK",KEY_S:"SKILL",KEY_W:"WAIT",KEY_ESCAPE:"CANCEL"}
+		var shortcuts = {KEY_M:"MOVE",KEY_A:"ATTACK",KEY_S:"SKILL",KEY_W:"WAIT",KEY_I:"ITEM",KEY_B:"CHEST",KEY_ESCAPE:"CANCEL"}
 		if not shortcuts.has(event.keycode):
 			return
 		on_radial_action(shortcuts[event.keycode])
@@ -1194,7 +1250,15 @@ func load_battle(from_backup: bool = false) -> void:
 		notice(loaded.message)
 		return
 	invalidate_animation()
+	if party.settled_ids.has(loaded.get("rpg",{}).get("battle_id","")):
+		notice("這場戰鬥已結算，不能載入舊快照再次領取戰利品。")
+		return
 	Saves.restore(battle,loaded)
+	if loaded.get("rpg",{}).is_empty():
+		battle.inventory = party.inventory.duplicate(true)
+		battle.loadouts = party.loadouts.duplicate(true)
+		battle.history.clear()
+		battle.capture_round()
 	level = loaded.level.duplicate(true)
 	selection = ""
 	inspected_id = ""
@@ -1222,3 +1286,14 @@ func _process(delta: float) -> void:
 	performance_clock = 0.0
 	if performance_label.visible:
 		performance_label.text = "FPS %d / 60 · 引擎幀時間 %.2f ms\nGodot 記憶體 %.1f MiB · VRAM %.1f MiB · Draw %d" % [Engine.get_frames_per_second(),Performance.get_monitor(Performance.TIME_PROCESS)*1000.0,Performance.get_monitor(Performance.MEMORY_STATIC)/1048576.0,Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)/1048576.0,Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]
+
+func rewind_battle(target: int) -> void:
+	if busy or battle.settled: return
+	if battle.rewind_to(target):
+		invalidate_animation()
+		mode = "BATTLE"
+		selection = ""
+		inspected_id = ""
+		action_mode = "COMMAND"
+		battle_ui()
+		notice("已回到第 %d 回合開始；背包、寶箱與隨機狀態同步還原。" % target)

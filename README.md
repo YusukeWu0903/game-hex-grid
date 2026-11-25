@@ -60,3 +60,13 @@
 執行 powershell -ExecutionPolicy Bypass -File ./Run_Tests.ps1。預設 UI 測試會短暫開啟實際 Godot 視窗並截圖；可加 -HeadlessUI 只跑無畫面流程。加 `-FullPlaythrough` 會額外使用實際鼠鍵事件完整打完兩張地圖，交錯自然播放與跳過演出（約一分鐘）。測試使用隔離資料，截圖與日誌位於 D:/Codex/visualizations/2026-11-25/hex-tactics-foundation 下的獨立 run 目錄。
 
 目前支援 Windows 鍵鼠，最小視窗 1100×720。Compatibility 渲染器已在本機執行；Web、手機、控制器操作與其他平台尚未驗證。人工檢視截圖不等同使用者已接受畫面與操作。
+
+## RPG 擴充（2026-11-25）
+
+主選單選「遠征試煉：法師與騎士」可部署五名角色並探索寶箱。「隊伍／裝備／道具」進行戰前整備；武器、防具、飾品各一槽，選擇即保存。法師魔彈消耗 4 MP，烈焰爆破為範圍魔傷；騎士盾牆提高物防與魔防。
+
+角色周圍原有五鍵下方新增藥水及寶箱圖示（I／B）。道具先選品項，再點自己或相鄰友軍；寶箱需本人或相鄰格，均消耗一次行動。擊殺和開箱所得暫存於本場，可於戰中使用；只有勝利後剩餘背包才永久入庫。
+
+左側選擇回合並按「回溯到選定回合」，恢復該我方回合開始的完整狀態。不限回溯次數，回溯後刪除後續歷史；敗北亦可回溯，勝利入庫後封存，不能重複領獎。
+
+資料編輯：以 Excel 開啟 data/tables/GameData.xlsx，保存後執行 Export_Data.cmd，成功後重新啟動遊戲。需要 Python 3；遊戲本身不需要 Python 或 Excel。完整欄位與規則見 docs/DATA_TABLES.md，玩法與限制見 docs/RPG_EXPANSION.md。

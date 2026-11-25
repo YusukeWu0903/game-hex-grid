@@ -134,7 +134,17 @@ func silhouette(unit: Dictionary, base: Vector2, facing: float, attack_offset: f
 	poly([Vector2(-38,-282),Vector2(16,-285),Vector2(26,-208),Vector2(-29,-197)],dark)
 	poly([Vector2(-60,-167),Vector2(44,-167),Vector2(43,-147),Vector2(-61,-147)],shadow)
 	draw_circle(Vector2(-9,-358),39,color)
-	if unit.job == "swordsman":
+	if unit.job == "mage":
+		poly([Vector2(-58,-330),Vector2(5,-445),Vector2(52,-330)],dark)
+		poly([Vector2(-50,-210),Vector2(45,-210),Vector2(85,-30),Vector2(-90,-30)],color)
+		draw_line(Vector2(90,-12),Vector2(100,-390),Color("#c7ad80"),8,true)
+		draw_circle(Vector2(100,-390),24,Color("#c495e0"))
+	elif unit.job == "knight":
+		poly([Vector2(-48,-390),Vector2(30,-390),Vector2(40,-345),Vector2(-48,-345)],shadow)
+		draw_line(Vector2(-20,-365),Vector2(28,-365),color,5)
+		poly([Vector2(25,-300),Vector2(125,-300),Vector2(120,-180),Vector2(72,-130),Vector2(25,-180)],Color("#b3bcc6"))
+		draw_line(Vector2(-75,-110),Vector2(-65,-365),Color("#e3dfcc"),10)
+	elif unit.job == "swordsman":
 		poly([Vector2(-49,-369),Vector2(-30,-406),Vector2(16,-406),Vector2(36,-373),Vector2(30,-345),Vector2(-48,-345)],shadow)
 		draw_line(Vector2(4,-370),Vector2(32,-370),color,5,true)
 		poly([Vector2(-61,-310),Vector2(-91,-286),Vector2(-69,-257),Vector2(-37,-275)],shadow)
@@ -215,7 +225,13 @@ func _draw() -> void:
 		var side = 1.0 if actor.faction == "PLAYER" else -1.0
 		var at = Vector2(1075 if side > 0 else 365,415)
 		var effect_color = Color("#ffdd9a") if int(action.mp_cost)>0 else Color("#e4f1ef")
-		if actor.job == "archer" and elapsed < 1.25:
+		if actor.job == "mage":
+			var t = clampf((elapsed-0.95)/0.3,0,1)
+			var x = lerpf(470 if side>0 else 970,at.x,t)
+			draw_circle(Vector2(x,415),22 if not impacted else 48,Color(0.95,0.45,0.12,0.65))
+			draw_circle(Vector2(x,415),12,Color("#ffe0a0"))
+			if impacted: draw_arc(at,70+30*sin(elapsed*12),0,TAU,40,effect_color,3,true)
+		elif actor.job == "archer" and elapsed < 1.25:
 			var t = clampf((elapsed-0.95)/0.3,0,1)
 			var x = lerpf(470 if side>0 else 970,at.x,t)
 			draw_line(Vector2(x-side*100,415),Vector2(x,415),effect_color,4,true)

@@ -64,6 +64,15 @@ func _draw() -> void:
 			draw_polyline(PackedVector2Array([center+Vector2(-9,-12),center+Vector2(-8,-6),center+Vector2(6,7),center+Vector2(8,12)]),ink,2.0,true)
 			draw_polyline(PackedVector2Array([center+Vector2(9,-12),center+Vector2(8,-6),center+Vector2(-6,7),center+Vector2(-8,12)]),ink,2.0,true)
 			draw_colored_polygon(PackedVector2Array([center+Vector2(-6,10),center+Vector2(0,5),center+Vector2(6,10)]),ink)
+		"ITEM":
+			draw_rect(Rect2(center+Vector2(-4,-14),Vector2(8,7)),ink,false,2)
+			draw_circle(center+Vector2(0,4),10,ink,false,2)
+			draw_line(center+Vector2(-6,4),center+Vector2(6,4),ink,2)
+			draw_line(center+Vector2(0,-2),center+Vector2(0,10),ink,2)
+		"CHEST":
+			draw_rect(Rect2(center+Vector2(-13,-9),Vector2(26,21)),ink,false,2)
+			draw_line(center+Vector2(-13,-1),center+Vector2(13,-1),ink,2)
+			draw_rect(Rect2(center+Vector2(-3,-3),Vector2(6,8)),ink)
 		"CANCEL":
 			draw_line(center+Vector2(-9,-9),center+Vector2(9,9),ink,3.0,true)
 			draw_line(center+Vector2(9,-9),center+Vector2(-9,9),ink,3.0,true)

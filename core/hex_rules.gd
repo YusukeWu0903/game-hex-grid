@@ -169,4 +169,14 @@ static func validate_map(value: Variant) -> Array[String]:
 		for entry_key in value.spawnPoints:
 			if terrain_cost(value, cell(entry_key)) < 0:
 				errors.append("出生點不可位於山脈或水域：" + entry_key)
+	if value.has("chests"):
+		if not value.chests is Dictionary: errors.append("寶箱資料必須為物件。")
+		else:
+			for key_value in value.chests:
+				var parts = str(key_value).split(",")
+				if parts.size()!=3 or not parts[0].is_valid_int() or not parts[1].is_valid_int() or not parts[2].is_valid_int():
+					errors.append("寶箱座標無效。")
+				elif key(cell(key_value))!=key_value or terrain_cost(value,cell(key_value))<0:
+					errors.append("寶箱必須位於可走格。")
+				if not value.chests[key_value] is String or value.chests[key_value].is_empty(): errors.append("寶箱表 ID 無效。")
 	return errors

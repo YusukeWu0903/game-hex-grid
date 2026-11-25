@@ -40,9 +40,12 @@ func paint(map: Dictionary, origin: Vector3i, brush: String, radius: int, fill: 
 		else:
 			if brush=="PLAIN": map.terrains.erase(k)
 			else: map.terrains[k] = brush
-			if brush in ["WATER","MOUNTAIN"]: map.spawnPoints.erase(k)
+			if brush in ["WATER","MOUNTAIN"]:
+				map.spawnPoints.erase(k)
+				map.get("chests",{}).erase(k)
 func resize(map: Dictionary, radius: int) -> void:
 	map.radius = clampi(radius,1,Hex.MAX_RADIUS)
-	for field in ["terrains","spawnPoints"]:
+	for field in ["terrains","spawnPoints","chests"]:
+		if not map.has(field): continue
 		for k in map[field].keys():
 			if not Hex.inside(Hex.cell(k),map.radius): map[field].erase(k)

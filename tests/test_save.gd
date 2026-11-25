@@ -49,7 +49,7 @@ func run() -> void:
 	for mutation in ["version","phase","turn","missing","overlap","dead","mp","flag","cell","job","name","faction","roster","enemyflag","allacted","badmap","badlevel","floatcell","duplicate","nonarray"]:
 		var bad = payload.duplicate(true)
 		match mutation:
-			"version": bad.version = 2
+			"version": bad.version = 99
 			"phase": bad.phase = "ENEMY"
 			"turn": bad.turn = 1.5
 			"missing": bad.erase("units")

@@ -22,16 +22,22 @@ func _init(custom_path: String = "") -> void:
 
 func default_level(map_id: String = "map_custom") -> Dictionary:
 	return {"levelId":"level_default","name":"邊境演練","mapId":map_id,
-		"playerIds":Catalog.roster_ids(),
+		"playerIds":["player_swordsman_01","player_swordsman_02","player_archer_01"],
 		"enemyIds":["enemy_swordsman_base","enemy_archer_base","enemy_heavy_guard"],
 		"winCondition":"ANNIHILATION","loseCondition":"PLAYER_DEATH"}
 
 func load_library() -> void:
 	maps = []
 	levels = []
-	for filename in ["map_tutorial","map_001"]:
+	for filename in ["map_tutorial","map_001","map_rpg"]:
 		maps.append(JSON.parse_string(FileAccess.get_file_as_string("res://data/maps/"+filename+".json")))
 	levels.append(default_level())
+	var expedition = default_level("map_rpg")
+	expedition.levelId = "level_rpg"
+	expedition.name = "遠征試煉：法師與騎士"
+	expedition.playerIds = Catalog.roster_ids()
+	expedition.enemyIds = ["enemy_swordsman_base","enemy_archer_base","enemy_mage_base","enemy_knight_base"]
+	levels.append(expedition)
 	if not FileAccess.file_exists(storage_path):
 		return
 	var value = JSON.parse_string(FileAccess.get_file_as_string(storage_path))
@@ -40,6 +46,7 @@ func load_library() -> void:
 		return
 	for map_value in value.maps:
 		var errors = Hex.validate_map(map_value)
+		errors.append_array(Catalog.validate_chest_tables(map_value))
 		if not errors.is_empty():
 			last_error = "存檔包含無效地圖，已跳過；原檔保留。"
 			continue
@@ -101,6 +108,7 @@ func validate_level(value: Variant, require_playable: bool = true) -> Array[Stri
 
 func save_map(value: Dictionary) -> Array[String]:
 	var errors = Hex.validate_map(value)
+	errors.append_array(Catalog.validate_chest_tables(value))
 	if not errors.is_empty():
 		return errors
 	var old_maps = maps.duplicate(true)
@@ -170,12 +178,14 @@ func import_map(path: String) -> Dictionary:
 		return {"ok":false,"message":"JSON 格式錯誤，第 %d 行。" % parser.get_error_line()}
 	var value = parser.data
 	var errors = Hex.validate_map(value)
+	errors.append_array(Catalog.validate_chest_tables(value))
 	if not errors.is_empty():
 		return {"ok":false,"message":"\n".join(errors)}
 	return {"ok":true,"map":value}
 
 func export_map(path: String, value: Dictionary) -> String:
 	var errors = Hex.validate_map(value)
+	errors.append_array(Catalog.validate_chest_tables(value))
 	if not errors.is_empty():
 		return "\n".join(errors)
 	var file = FileAccess.open(path,FileAccess.WRITE)

@@ -6,12 +6,23 @@
       "max_mp": 20,
       "range_min": 1,
       "range_max": 1,
+      "damage_type": "physical",
+      "defense": 0,
+      "resistance": 0,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 0,
       "skill": {
+        "id": "swordsman_skill",
         "name": "重擊",
         "range_min": 1,
         "range_max": 1,
         "mp_cost": 10,
-        "damage": 7
+        "damage": 7,
+        "damage_type": "physical",
+        "radius": 0,
+        "effect": "damage",
+        "guard": 0
       }
     },
     "archer": {
@@ -20,12 +31,73 @@
       "max_mp": 30,
       "range_min": 2,
       "range_max": 3,
+      "damage_type": "physical",
+      "defense": 0,
+      "resistance": 0,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 0,
       "skill": {
+        "id": "archer_skill",
         "name": "強力射擊",
         "range_min": 2,
         "range_max": 4,
         "mp_cost": 15,
-        "damage": 6
+        "damage": 6,
+        "damage_type": "physical",
+        "radius": 0,
+        "effect": "damage",
+        "guard": 0
+      }
+    },
+    "mage": {
+      "name": "法師",
+      "movement": 3,
+      "max_mp": 30,
+      "range_min": 1,
+      "range_max": 3,
+      "damage_type": "magic",
+      "defense": 0,
+      "resistance": 2,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 4,
+      "skill": {
+        "id": "fire_burst",
+        "name": "烈焰爆破",
+        "range_min": 1,
+        "range_max": 3,
+        "mp_cost": 10,
+        "damage": 6,
+        "damage_type": "magic",
+        "radius": 1,
+        "effect": "damage",
+        "guard": 0
+      }
+    },
+    "knight": {
+      "name": "騎士",
+      "movement": 2,
+      "max_mp": 20,
+      "range_min": 1,
+      "range_max": 1,
+      "damage_type": "physical",
+      "defense": 2,
+      "resistance": 0,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 0,
+      "skill": {
+        "id": "shield_wall",
+        "name": "盾牆",
+        "range_min": 0,
+        "range_max": 0,
+        "mp_cost": 6,
+        "damage": 0,
+        "damage_type": "physical",
+        "radius": 0,
+        "effect": "guard",
+        "guard": 3
       }
     }
   },
@@ -47,28 +119,320 @@
       "name": "琳恩",
       "job": "archer",
       "max_hp": 10
+    },
+    {
+      "id": "player_mage_01",
+      "name": "米菈",
+      "job": "mage",
+      "max_hp": 9
+    },
+    {
+      "id": "player_knight_01",
+      "name": "雷昂",
+      "job": "knight",
+      "max_hp": 16
     }
   ],
   "enemies": {
     "enemy_swordsman_base": {
+      "id": "enemy_swordsman_base",
       "name": "帝國步兵",
       "job": "swordsman",
-      "max_hp": 12
+      "max_hp": 12,
+      "loot_table": "common"
     },
     "enemy_archer_base": {
+      "id": "enemy_archer_base",
       "name": "帝國弓手",
       "job": "archer",
-      "max_hp": 10
+      "max_hp": 10,
+      "loot_table": "common"
     },
     "enemy_heavy_guard": {
+      "id": "enemy_heavy_guard",
       "name": "帝國重裝兵",
       "job": "swordsman",
-      "max_hp": 18
+      "max_hp": 18,
+      "loot_table": "elite"
     },
     "enemy_assassin": {
+      "id": "enemy_assassin",
       "name": "帝國刺客",
       "job": "swordsman",
-      "max_hp": 8
+      "max_hp": 8,
+      "loot_table": "common"
+    },
+    "enemy_mage_base": {
+      "id": "enemy_mage_base",
+      "name": "帝國法師",
+      "job": "mage",
+      "max_hp": 9,
+      "loot_table": "common"
+    },
+    "enemy_knight_base": {
+      "id": "enemy_knight_base",
+      "name": "帝國騎士",
+      "job": "knight",
+      "max_hp": 16,
+      "loot_table": "elite"
+    }
+  },
+  "equipment": {
+    "iron_sword": {
+      "name": "鐵劍",
+      "slot": "weapon",
+      "jobs": [
+        "swordsman",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "longbow": {
+      "name": "長弓",
+      "slot": "weapon",
+      "jobs": [
+        "archer"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "oak_staff": {
+      "name": "橡木法杖",
+      "slot": "weapon",
+      "jobs": [
+        "mage"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "steel_sword": {
+      "name": "鋼劍",
+      "slot": "weapon",
+      "jobs": [
+        "swordsman",
+        "knight"
+      ],
+      "attack": 2,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "hunters_bow": {
+      "name": "獵人弓",
+      "slot": "weapon",
+      "jobs": [
+        "archer"
+      ],
+      "attack": 2,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "ember_staff": {
+      "name": "餘燼法杖",
+      "slot": "weapon",
+      "jobs": [
+        "mage"
+      ],
+      "attack": 0,
+      "magic": 2,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "leather_armor": {
+      "name": "皮甲",
+      "slot": "armor",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 1,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "plate_armor": {
+      "name": "鋼製鎧甲",
+      "slot": "armor",
+      "jobs": [
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 2,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "ward_robe": {
+      "name": "護法長袍",
+      "slot": "armor",
+      "jobs": [
+        "mage"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 2,
+      "hp": 0,
+      "mp": 0
+    },
+    "vitality_ring": {
+      "name": "生命戒指",
+      "slot": "accessory",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "mage",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 3,
+      "mp": 0
+    },
+    "mana_charm": {
+      "name": "魔力護符",
+      "slot": "accessory",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "mage",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 5
+    }
+  },
+  "items": {
+    "potion": {
+      "name": "治療藥水",
+      "hp": 8,
+      "mp": 0,
+      "range": 1
+    },
+    "ether": {
+      "name": "魔力藥水",
+      "hp": 0,
+      "mp": 10,
+      "range": 1
+    },
+    "elixir": {
+      "name": "精製回復藥",
+      "hp": 12,
+      "mp": 10,
+      "range": 1
+    }
+  },
+  "loot_tables": {
+    "common": [
+      {
+        "item": "potion",
+        "chance": 0.35,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "item": "ether",
+        "chance": 0.15,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "elite": [
+      {
+        "item": "potion",
+        "chance": 0.5,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "item": "steel_sword",
+        "chance": 0.2,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "chest": [
+      {
+        "item": "potion",
+        "chance": 1.0,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "item": "ether",
+        "chance": 0.6,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "item": "vitality_ring",
+        "chance": 0.25,
+        "min": 1,
+        "max": 1
+      }
+    ]
+  },
+  "chest_tables": {
+    "wooden": {
+      "name": "木製寶箱",
+      "loot_table": "chest"
+    }
+  },
+  "starter_inventory": {
+    "iron_sword": 3,
+    "longbow": 1,
+    "oak_staff": 1,
+    "leather_armor": 2,
+    "plate_armor": 1,
+    "ward_robe": 1,
+    "potion": 5,
+    "ether": 3
+  },
+  "default_loadouts": {
+    "player_swordsman_01": {
+      "weapon": "iron_sword"
+    },
+    "player_swordsman_02": {
+      "weapon": "iron_sword"
+    },
+    "player_archer_01": {
+      "weapon": "longbow"
+    },
+    "player_mage_01": {
+      "weapon": "oak_staff"
+    },
+    "player_knight_01": {
+      "weapon": "iron_sword"
     }
   }
 }

@@ -85,6 +85,13 @@ static func generate(radius: int, seed_value: int, obstacle_ratio: float = 0.25)
 				count += 1
 				if count==3: break
 		land.reverse()
+	map.chests = {}
+	var chest_count = clampi(radius/3,1,6)
+	for c in candidates:
+		var key = Hex.key(c)
+		if Hex.terrain_cost(map,c)>0 and not map.spawnPoints.has(key) and Hex.distance(c,Vector3i.ZERO)<=maxi(1,radius-2):
+			map.chests[key] = "wooden"
+			if map.chests.size()>=chest_count: break
 	return map
 
 static func connected(walkable: Dictionary) -> bool:

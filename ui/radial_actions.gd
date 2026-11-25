@@ -3,6 +3,7 @@ const IconButton = preload("res://ui/action_icon_button.gd")
 const Catalog = preload("res://core/catalog.gd")
 signal action_requested(action: String)
 var buttons: Dictionary = {}
+var utility_buttons: Dictionary = {}
 var board
 var anchor_cell = Vector3i.ZERO
 var ring_center = Vector2.ZERO
@@ -33,10 +34,24 @@ func _ready() -> void:
 				item.accept_event())
 		add_child(item)
 		buttons[id] = item
+	for id in ["ITEM","CHEST"]:
+		var item = IconButton.new()
+		item.action_id = id
+		item.tooltip_text = "道具 [I]：選擇消耗品並點自己／相鄰友軍" if id=="ITEM" else "開箱 [B]：點自己／相鄰格的寶箱，消耗行動"
+		item.accessibility_name = "使用道具" if id=="ITEM" else "開啟寶箱"
+		item.pressed.connect(func(): action_requested.emit(id))
+		utility_buttons[id] = item
+		add_child(item)
 	for i in range(ORDER.size()):
 		var item = buttons[ORDER[i]]
 		item.focus_next = item.get_path_to(buttons[ORDER[(i+1)%ORDER.size()]])
 		item.focus_previous = item.get_path_to(buttons[ORDER[(i+4)%ORDER.size()]])
+	buttons.CANCEL.focus_next = buttons.CANCEL.get_path_to(utility_buttons.ITEM)
+	utility_buttons.ITEM.focus_previous = utility_buttons.ITEM.get_path_to(buttons.CANCEL)
+	utility_buttons.ITEM.focus_next = utility_buttons.ITEM.get_path_to(utility_buttons.CHEST)
+	utility_buttons.CHEST.focus_previous = utility_buttons.CHEST.get_path_to(utility_buttons.ITEM)
+	utility_buttons.CHEST.focus_next = utility_buttons.CHEST.get_path_to(buttons.MOVE)
+	buttons.MOVE.focus_previous = buttons.MOVE.get_path_to(utility_buttons.CHEST)
 	hide()
 
 func configure(unit: Dictionary) -> void:
@@ -52,6 +67,8 @@ func configure(unit: Dictionary) -> void:
 				tip += "\n本回合已移動" if unit.moved else "\n移動力 %d，依地形計算消耗" % unit.movement
 			"ATTACK":
 				var attack = Catalog.action(unit)
+				item.disabled = unit.mp<int(attack.mp_cost)
+				tip += "\n%s · %d MP" % [attack.name,attack.mp_cost]
 				tip += "\n%d 傷害 · 射程 %d–%d" % [attack.damage,attack.range_min,attack.range_max]
 			"SKILL":
 				item.disabled = unit.mp < skill.mp_cost
@@ -74,13 +91,15 @@ func reposition() -> void:
 	var new_unit_center: Vector2 = board.position_of(anchor_cell)
 	# Keep the whole ring on the board; a leader connects an inset ring to its unit.
 	var new_ring_center = Vector2(clampf(new_unit_center.x,EDGE,maxf(EDGE,size.x-EDGE)),
-		clampf(new_unit_center.y,EDGE,maxf(EDGE,size.y-EDGE)))
+		clampf(new_unit_center.y,EDGE,maxf(EDGE,size.y-155)))
 	var changed = new_unit_center != unit_center or new_ring_center != ring_center
 	unit_center = new_unit_center
 	ring_center = new_ring_center
 	for i in range(ORDER.size()):
 		var angle = deg_to_rad(ANGLES[i])
 		buttons[ORDER[i]].position = ring_center+Vector2(cos(angle),sin(angle))*RADIUS-Vector2(27,27)
+	for i in range(2):
+		utility_buttons[["ITEM","CHEST"][i]].position = ring_center+Vector2(-34 if i==0 else 34,119)-Vector2(27,27)
 	if changed: queue_redraw()
 
 func _process(_delta: float) -> void:

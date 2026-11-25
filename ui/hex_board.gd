@@ -30,9 +30,11 @@ var terrain_layer: Node2D
 var automatic_focus = false
 var last_painted = Vector3i(999,999,999)
 var units: Array = []
+var opened_chests: Dictionary = {}
 var selected_id = ""
 var reachable: Dictionary = {}
 var target_cells: Dictionary = {}
+var area_cells: Dictionary = {}
 var threat_cells: Dictionary = {}
 var inspected_id = ""
 var pan_offset = Vector2.ZERO
@@ -196,7 +198,9 @@ func _draw() -> void:
 		keys.merge(threat_cells)
 		keys.merge(reachable)
 		keys.merge(target_cells)
+		keys.merge(area_cells)
 		if show_spawns: keys.merge(map.spawnPoints)
+		keys.merge(map.get("chests",{}))
 		if Hex.inside(hovered,map.radius): keys[Hex.key(hovered)] = true
 		overlay_cells = []
 		for key in keys: overlay_cells.append(Hex.cell(key))
@@ -205,7 +209,7 @@ func _draw() -> void:
 		var terrain = map.terrains.get(key,"PLAIN")
 		var at = position_of(cell)
 		if not Rect2(Vector2(-hs,-hs*2),size+Vector2(hs*2,hs*4)).has_point(at): continue
-		var has_overlay = invalid_cells.has(key) or threat_cells.has(key) or reachable.has(key) or target_cells.has(key) or cell==hovered
+		var has_overlay = area_cells.has(key) or invalid_cells.has(key) or threat_cells.has(key) or reachable.has(key) or target_cells.has(key) or cell==hovered
 		var points = polygon(at,hs-1.5) if has_overlay else PackedVector2Array()
 		if tile_atlas == null:
 			draw_colored_polygon(polygon(at,hs-1.5),COLORS.get(terrain,COLORS.PLAIN))
@@ -225,12 +229,22 @@ func _draw() -> void:
 		if target_cells.has(key):
 			draw_colored_polygon(points,Color(0.9,0.29,0.28,0.20))
 			draw_polyline(outline,Color("#dd7370"),1.5,true)
+		if area_cells.has(key):
+			draw_colored_polygon(points,Color(1,0.65,0.1,0.35))
+			draw_polyline(outline,Color("#ffc96b"),2.0,true)
 		if cell == hovered:
 			draw_polyline(outline,Color("#e8cf95"),2.0,true)
 		if show_coordinates:
 			text_at(at+Vector2(0,4),key,maxi(10,int(hs*0.22)),Color("#b1bdc9"))
 		elif false:
 			text_at(at+Vector2(0,4),LABELS[terrain],maxi(13,int(hs*0.3)),Color(0.8,0.88,0.9,0.45))
+		if map.get("chests",{}).has(key):
+			var chest_color = Color("#877a60") if opened_chests.has(key) else Color("#e1ba61")
+			var box = Rect2(at+Vector2(-hs*0.28,-hs*0.12),Vector2(hs*0.56,hs*0.35))
+			draw_rect(box,Color("#654524"))
+			draw_rect(box,chest_color,false,2)
+			draw_line(at+Vector2(-hs*0.28,0),at+Vector2(hs*0.28,0),chest_color,2)
+			if not opened_chests.has(key): draw_circle(at+Vector2(0,hs*0.05),2,chest_color)
 		if show_spawns and map.spawnPoints.has(key):
 			var player = map.spawnPoints[key] == "PLAYER"
 			text_at(at+Vector2(0,hs*0.58),"我方" if player else "敵方",12,Color("#8bd6f3") if player else Color("#ffa7a0"))
@@ -272,7 +286,12 @@ func draw_unit(unit: Dictionary, hs: float) -> void:
 		draw_arc(at,radius+5,0,TAU,40,Color("#f4d58b"),2.5,true)
 	var white = Color("#f4f2e9")
 	var length = radius*0.48
-	if unit.job == "swordsman":
+	if unit.job == "mage":
+		draw_line(at+Vector2(-length,length),at+Vector2(length,-length),white,2.4,true)
+		draw_circle(at+Vector2(length,-length),4,Color("#d1a3ef"))
+	elif unit.job == "knight":
+		draw_colored_polygon(PackedVector2Array([at+Vector2(-length,-length),at+Vector2(length,-length),at+Vector2(length,length*0.5),at+Vector2(0,length*1.3),at+Vector2(-length,length*0.5)]),white)
+	elif unit.job == "swordsman":
 		draw_line(at+Vector2(-length,-length),at+Vector2(length,length),white,2.4,true)
 		draw_line(at+Vector2(length,-length),at+Vector2(-length,length),white,2.4,true)
 	else:

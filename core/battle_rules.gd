@@ -42,7 +42,7 @@ static func can_attack(actor: Dictionary, target: Dictionary, action: Dictionary
 static func apply_attack(actor: Dictionary, target: Dictionary, action: Dictionary) -> Dictionary:
 	if not can_attack(actor,target,action):
 		return {"ok":false, "damage":0}
-	var damage = int(action.get("damage",0))
+	var damage = damage_for(actor,target,action)
 	if damage <= 0 or int(action.get("mp_cost",0)) < 0:
 		return {"ok":false, "damage":0}
 	actor.mp = int(actor.mp) - int(action.get("mp_cost",0))
@@ -199,3 +199,9 @@ static func threat_cells(map: Dictionary, actor: Dictionary, units: Array, actio
 			if Hex.inside(target,int(map.radius)):
 				result[Hex.key(target)] = true
 	return result
+
+static func damage_for(actor: Dictionary, target: Dictionary, action: Dictionary) -> int:
+	var magic = action.get("damage_type","physical")=="magic"
+	var bonus = int(actor.get("magic_bonus" if magic else "attack_bonus",0))
+	var defense = int(target.get("resistance" if magic else "defense",0))+int(target.get("guard",0))
+	return maxi(1,int(action.get("damage",0))+bonus-defense)
