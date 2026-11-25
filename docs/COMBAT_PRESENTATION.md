@@ -23,14 +23,16 @@
 
 ## 正式立繪接入
 
-目前預留的資源路徑為：
+優先使用 `res://assets/portraits/<unit.id>.png`。三名主角的 player_swordsman_01、player_swordsman_02、player_archer_01 已於 2026-11-25 經使用者採用並接入。
+
+若逐名立繪不存在，再使用以下職業／陣營路徑：
 
 - `res://assets/portraits/swordsman_player.png`
 - `res://assets/portraits/swordsman_enemy.png`
 - `res://assets/portraits/archer_player.png`
 - `res://assets/portraits/archer_enemy.png`
 
-素材不存在時使用程式繪製剪影。使用透明 PNG、朝畫面右方、完整保留人物與武器；敵方在畫面右邊由程式水平翻轉。圖像等比例放入 420×470 的設計區域，底部對齊站立線。這一輪以職業／陣營區分素材，尚未建立逐名角色表情與骨架動畫系統。
+素材不存在時使用程式繪製剪影。使用透明 PNG、朝畫面右方、完整保留人物與武器；敵方在畫面右邊由程式水平翻轉。圖像等比例放入 420×470 的設計區域，底部對齊站立線。逐名角色可使用不同素材；尚未建立表情與骨架動畫系統。
 
 正式圖匯入 Godot 並重啟遊戲後生效。
 

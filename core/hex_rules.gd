@@ -1,6 +1,7 @@
 class_name HexRules
 extends RefCounted
 
+const MAX_RADIUS = 24
 const DIRECTIONS = [Vector3i(1,-1,0), Vector3i(1,0,-1), Vector3i(0,1,-1), Vector3i(-1,1,0), Vector3i(-1,0,1), Vector3i(0,-1,1)]
 const TERRAINS = ["PLAIN", "FOREST", "SWAMP", "HILLS", "MOUNTAIN", "WATER"]
 
@@ -141,8 +142,8 @@ static func validate_map(value: Variant) -> Array[String]:
 		if not value.get(field) is String or str(value.get(field, "")).strip_edges().is_empty():
 			errors.append("缺少有效的 " + field)
 	var radius = value.get("radius", 0)
-	if not (radius is int or radius is float) or float(radius) != floorf(float(radius)) or float(radius) < 1 or float(radius) > 12:
-		errors.append("地圖半徑必須是 1 至 12 的整數。")
+	if not (radius is int or radius is float) or float(radius) != floorf(float(radius)) or float(radius) < 1 or float(radius) > MAX_RADIUS:
+		errors.append("地圖半徑必須是 1 至 24 的整數。")
 		return errors
 	for field in ["terrains", "spawnPoints"]:
 		var entries = value.get(field)

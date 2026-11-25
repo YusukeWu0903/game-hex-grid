@@ -113,7 +113,9 @@ func silhouette(unit: Dictionary, base: Vector2, facing: float, attack_offset: f
 	dark.a = alpha
 	draw_set_transform(_stage_offset+(base+Vector2(attack_offset,0))*_stage_scale,0,Vector2(facing,1)*_stage_scale)
 	# Optional adopted artwork can replace the placeholder without changing combat.
-	var path = "res://assets/portraits/%s_%s.png" % [unit.job,str(unit.faction).to_lower()]
+	var path = "res://assets/portraits/%s.png" % str(unit.get("id",""))
+	if not ResourceLoader.exists(path):
+		path = "res://assets/portraits/%s_%s.png" % [unit.job,str(unit.faction).to_lower()]
 	if not portrait_cache.has(path):
 		portrait_cache[path] = load(path) if ResourceLoader.exists(path) else null
 	if portrait_cache[path] != null:

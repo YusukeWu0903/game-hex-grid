@@ -63,6 +63,7 @@ func run() -> void:
 	await click(app.board.global_position+app.board.position_of(player.cell))
 	check(app.selection == player.id and app.radial_actions.visible,"player command after inspection")
 	await key(KEY_F)
+	await create_timer(0.9).timeout
 	check(app.board.position_of(player.cell).distance_to(app.board.size*Vector2(0.5,0.49))<1,"F focuses selected player")
 	await key(KEY_HOME)
 	check(app.board.pan_offset==Vector2.ZERO and app.board.zoom==1,"Home resets camera")
@@ -76,13 +77,15 @@ func run() -> void:
 	root.push_input(motion,true)
 	await process_frame
 	await mouse(motion.position,MOUSE_BUTTON_MIDDLE,false)
-	check(app.board.pan_offset==Vector2(100,-40),"middle drag pans board")
+	await create_timer(0.9).timeout
+	check(app.board.pan_offset.distance_to(Vector2(100,-40))<0.1,"middle drag pans board")
 	check(app.battle.units==old_units,"panning never spends movement")
 	check(app.radial_actions.unit_center.distance_to(app.board.position_of(player.cell))<1,"ring tracks panned unit")
 	await capture("foundation-03-panned")
 	await click(app.board.global_position+app.board.position_of(enemy.cell))
 	check(app.inspected_id==enemy.id,"panned mouse picking selects correct enemy")
 	await key(KEY_F)
+	await create_timer(0.9).timeout
 	check(app.board.position_of(enemy.cell).distance_to(app.board.size*Vector2(0.5,0.49))<1,"F focuses inspected enemy")
 	root.size=Vector2i(1100,720)
 	await capture("foundation-04-small")

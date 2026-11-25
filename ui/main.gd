@@ -1,4 +1,16 @@
 extends Control
+const MapGenerator = preload("res://core/map_generator.gd")
+const MapEditor = preload("res://core/map_editor.gd")
+var map_editor = MapEditor.new()
+var brush_radius = 0
+var fill_brush = false
+var generator_seed = 20261125
+var generator_ratio = 0.25
+var editor_radius = 4
+var generator_preview: Dictionary = {}
+var stroke_active = false
+var performance_label: Label
+var performance_clock = 0.0
 const Hex = preload("res://core/hex_rules.gd")
 const Rules = preload("res://core/battle_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
@@ -56,6 +68,7 @@ var move_button: Button
 var wait_button: Button
 
 func _ready() -> void:
+	Engine.max_fps = 60
 	get_window().min_size = Vector2i(1100,720)
 	store = Store.new()
 	preferences = Preferences.new(store.storage_path.get_base_dir().path_join("settings.json"))
@@ -80,10 +93,10 @@ func build_theme() -> void:
 	t.default_font_size = 16
 	for state in ["normal","hover","pressed","focus","disabled"]:
 		var style = StyleBoxFlat.new()
-		style.bg_color = Color("#1c2b3b")
-		style.border_color = Color("#385065")
-		if state == "hover": style.bg_color = Color("#2a4257")
-		if state == "pressed": style.bg_color = Color("#31596b")
+		style.bg_color = Color("#303c37")
+		style.border_color = Color("#7e8063")
+		if state == "hover": style.bg_color = Color("#465448")
+		if state == "pressed": style.bg_color = Color("#59644d")
 		if state == "focus": style.border_color = Color("#e3c68c")
 		if state == "disabled": style.bg_color = Color("#131e29")
 		style.set_border_width_all(1 if state != "focus" else 2)
@@ -98,8 +111,8 @@ func build_theme() -> void:
 	t.set_color("font_color","Button",Color("#e5edf4"))
 	t.set_color("font_disabled_color","Button",Color("#76889a"))
 	var dialog_panel = StyleBoxFlat.new()
-	dialog_panel.bg_color = Color("#142130")
-	dialog_panel.border_color = Color("#385065")
+	dialog_panel.bg_color = Color("#222f2d")
+	dialog_panel.border_color = Color("#7e8063")
 	dialog_panel.set_border_width_all(1)
 	dialog_panel.content_margin_left = 18
 	dialog_panel.content_margin_right = 18
@@ -216,12 +229,24 @@ func build_shell() -> void:
 	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board.custom_minimum_size = Vector2(400,400)
 	board_column.add_child(board)
+	performance_label = Label.new()
+	performance_label.position = Vector2(12,12)
+	performance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	performance_label.add_theme_color_override("font_color",Color.WHITE)
+	performance_label.add_theme_color_override("font_shadow_color",Color.BLACK)
+	performance_label.add_theme_constant_override("shadow_offset_x",2)
+	performance_label.add_theme_constant_override("shadow_offset_y",2)
+	performance_label.visible = false
+	board.add_child(performance_label)
 	radial_actions = RadialActions.new()
 	board.add_child(radial_actions)
 	radial_actions.board = board
 	radial_actions.action_requested.connect(on_radial_action)
 	board.cell_clicked.connect(on_cell_clicked)
 	board.cell_hovered.connect(on_cell_hovered)
+	board.stroke_finished.connect(func(): stroke_active = false)
+	board.cell_dragged.connect(func(cell):
+		if mode == "MAP_EDITOR" and not fill_brush: paint_cell(cell))
 	detail_label = Label.new()
 	detail_label.custom_minimum_size.y = 44
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -267,6 +292,7 @@ func build_shell() -> void:
 [T] 顯示全部敵方威脅；紫紅色格與小圓點表示移動後可能普攻到的位置。
 範圍依目前占位計算，不保證 AI 選擇該位置；單位移動後會重新計算。
 滾輪縮放；中鍵拖曳平移；[F] 定位所選角色；[Home] 重置視角。
+右下小地圖可定位；邊緣捲動；[F3] 開關效能監視（60 FPS 上限）。
 
 [b]地形[/b]
 [color=#acbccf]■ 平地[/color]：移動成本 1
@@ -404,6 +430,11 @@ func begin_deployment(config: Dictionary, map_override: Dictionary = {}) -> void
 	selection = ""
 	action_mode = "MOVE"
 	refresh_deployment()
+	if int(battle.map.radius)>4:
+		for key in battle.map.spawnPoints:
+			if battle.map.spawnPoints[key]=="PLAYER":
+				board.focus_cell(Hex.cell(key))
+				break
 	notice("選擇左側角色，再點我方出生格；右鍵可收回已部署角色。")
 
 func refresh_deployment() -> void:
@@ -519,6 +550,7 @@ func select_unit(id: String) -> void:
 	if busy or not battle.can_control(id):
 		return
 	selection = id
+	if int(battle.map.radius)>4: board.focus_cell(battle.get_unit(id).cell)
 	inspected_id = ""
 	action_mode = "COMMAND"
 	battle_ui()
@@ -580,6 +612,7 @@ func after_action() -> void:
 func sync_board() -> void:
 	if mode in ["BATTLE","DEPLOYMENT","RESULT"]:
 		board.map = battle.map
+		board.invalid_cells = {}
 		board.units = battle.units
 	board.selected_id = selection
 	board.inspected_id = inspected_id
@@ -728,6 +761,7 @@ func present_combat(actor: Dictionary, target: Dictionary, action: Dictionary, r
 func animate_movement(id: String, origin: Vector3i, path: Array, token: int) -> void:
 	var previous = origin
 	for cell in path:
+		if int(battle.map.radius)>4: board.focus_cell(cell)
 		if token != generation:
 			return
 		# Store logical cells, not cached pixels, so resize cannot detach a moving unit.
@@ -900,11 +934,17 @@ func open_map_editor(map: Dictionary) -> void:
 	invalidate_animation()
 	mode = "MAP_EDITOR"
 	editing_map = map.duplicate(true)
+	map_editor = MapEditor.new()
+	editor_radius = int(map.radius)
+	generator_preview = {}
+	board.reset_camera()
 	selection = ""
 	brush = "PLAIN"
 	render_map_editor()
 
 func render_map_editor() -> void:
+	generator_preview = {}
+	stroke_active = false
 	clear_sidebar()
 	label("地圖編輯",22)
 	var picker = OptionButton.new()
@@ -933,6 +973,74 @@ func render_map_editor() -> void:
 			brush = key
 			render_map_editor())
 		brushes.add_child(item)
+	label("筆刷範圍 / 地圖尺寸",18)
+	var brush_size = SpinBox.new()
+	brush_size.min_value = 0
+	brush_size.max_value = 3
+	brush_size.value = brush_radius
+	brush_size.prefix = "筆刷半徑 "
+	brush_size.value_changed.connect(func(value): brush_radius = int(value))
+	sidebar.add_child(brush_size)
+	var fill_toggle = CheckButton.new()
+	fill_toggle.text = "填滿同地形區域"
+	fill_toggle.button_pressed = fill_brush
+	fill_toggle.toggled.connect(func(value): fill_brush = value)
+	sidebar.add_child(fill_toggle)
+	button("復原 Ctrl+Z",func():
+		editing_map = map_editor.undo(editing_map)
+		render_map_editor())
+	button("重做 Ctrl+Y",func():
+		editing_map = map_editor.redo(editing_map)
+		render_map_editor())
+	var radius_input = SpinBox.new()
+	radius_input.min_value = 1
+	radius_input.max_value = Hex.MAX_RADIUS
+	radius_input.value = editor_radius
+	radius_input.prefix = "地圖半徑 "
+	radius_input.value_changed.connect(func(value): editor_radius = int(value))
+	sidebar.add_child(radius_input)
+	button("套用尺寸（可復原）",func():
+		map_editor.checkpoint(editing_map)
+		map_editor.resize(editing_map,editor_radius)
+		render_map_editor())
+	label("規則生成",18)
+	var seed_input = SpinBox.new()
+	seed_input.min_value = 0
+	seed_input.max_value = 2147483647
+	seed_input.value = generator_seed
+	seed_input.prefix = "種子 "
+	seed_input.value_changed.connect(func(value): generator_seed = int(value))
+	sidebar.add_child(seed_input)
+	var ratio_input = SpinBox.new()
+	ratio_input.min_value = 0
+	ratio_input.max_value = 45
+	ratio_input.value = generator_ratio*100
+	ratio_input.suffix = "% 山水目標"
+	ratio_input.value_changed.connect(func(value): generator_ratio = value/100.0)
+	sidebar.add_child(ratio_input)
+	button("一鍵生成預覽",func():
+		generator_preview = MapGenerator.generate(editor_radius,generator_seed,generator_ratio)
+		board.map = generator_preview
+		board.invalid_cells = {}
+		board.queue_redraw()
+		notice("生成預覽：%d 格。套用後才改變編輯內容。" % Hex.cells(editor_radius).size()))
+	button("套用生成結果",func():
+		if generator_preview.is_empty():
+			notice("請先生成預覽。")
+			return
+		map_editor.checkpoint(editing_map)
+		var old_id = editing_map.mapId
+		var old_name = editing_map.name
+		editing_map = generator_preview.duplicate(true)
+		editing_map.mapId = old_id
+		editing_map.name = old_name
+		generator_preview = {}
+		render_map_editor())
+	button("返回編輯內容",func():
+		generator_preview = {}
+		render_map_editor())
+	button("檢查連通與山水群落",validate_editor_map)
+	button("鏡頭回到中央",board.reset_camera)
 	button("儲存地圖",save_map)
 	button("匯出 JSON",func():
 		file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -955,31 +1063,36 @@ func render_map_editor() -> void:
 	board.target_cells = {}
 	board.path = []
 	board.show_spawns = true
-	board.show_coordinates = true
+	board.show_coordinates = false
+	board.invalid_cells = {}
 	board.queue_redraw()
 	state_label.text = "地圖編輯"
 	context_label.text = "%s  ·  半徑 %d" % [editing_map.name,editing_map.radius]
-	detail_label.text = "點擊格子繪製。出生點只能放在可通行地形。"
+	detail_label.text = "左鍵拖曳繪製 · 中鍵移動 · 滾輪縮放 · 右下小地圖定位 · Ctrl+Z / Y 復原重做"
 
 func paint_cell(cell: Vector3i) -> void:
-	var key = Hex.key(cell)
-	if brush in ["PLAYER","ENEMY"]:
-		if Hex.terrain_cost(editing_map,cell) < 0:
-			notice("出生點不能放在山脈或水域。")
-			return
-		editing_map.spawnPoints[key] = brush
-	elif brush == "CLEAR":
-		editing_map.spawnPoints.erase(key)
-	else:
-		if brush == "PLAIN":
-			editing_map.terrains.erase(key)
-		else:
-			editing_map.terrains[key] = brush
-		if brush in ["MOUNTAIN","WATER"]:
-			editing_map.spawnPoints.erase(key)
+	if not generator_preview.is_empty():
+		notice("目前為生成預覽，請先套用或返回編輯內容。")
+		return
+	if not stroke_active:
+		map_editor.checkpoint(editing_map)
+		stroke_active = true
+	map_editor.paint(editing_map,cell,brush,brush_radius,fill_brush)
+	board.invalidate_terrain()
+	board.invalid_cells = {}
 	board.queue_redraw()
 
+func validate_editor_map() -> void:
+	var report = MapGenerator.diagnose(editing_map)
+	board.invalid_cells = report.cells
+	board.queue_redraw()
+	notice("規則檢查通過：可走區連通，山水群落至少 3 格。" if report.errors.is_empty() else "\n".join(report.errors))
+
 func save_map() -> void:
+	var report = MapGenerator.diagnose(editing_map)
+	if not report.errors.is_empty():
+		validate_editor_map()
+		return
 	var errors = store.save_map(editing_map)
 	if errors.is_empty():
 		notice("地圖已儲存。")
@@ -997,6 +1110,10 @@ func on_file_selected(path: String) -> void:
 		else:
 			notice(result.message)
 	else:
+		var report = MapGenerator.diagnose(editing_map)
+		if not report.errors.is_empty():
+			validate_editor_map()
+			return
 		var error = store.export_map(path,editing_map)
 		notice("地圖已匯出。" if error.is_empty() else error)
 
@@ -1014,8 +1131,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if confirm_dialog.visible or file_dialog.visible or help_dialog.visible:
 		return
+	if event.keycode == KEY_F3:
+		performance_label.visible = not performance_label.visible
+		get_viewport().set_input_as_handled()
+		return
 	if event.keycode == KEY_F1:
 		show_help()
+		get_viewport().set_input_as_handled()
+		return
+	if mode == "MAP_EDITOR" and event.ctrl_pressed and event.keycode in [KEY_Z,KEY_Y]:
+		editing_map = map_editor.undo(editing_map) if event.keycode == KEY_Z else map_editor.redo(editing_map)
+		generator_preview = {}
+		render_map_editor()
 		get_viewport().set_input_as_handled()
 		return
 	if mode != "BATTLE":
@@ -1088,3 +1215,10 @@ func _exit_tree() -> void:
 		cinematic.abort()
 	if is_instance_valid(settings_timer) and not settings_timer.is_stopped():
 		preferences.save()
+
+func _process(delta: float) -> void:
+	performance_clock += delta
+	if performance_clock < 0.5 or performance_label == null: return
+	performance_clock = 0.0
+	if performance_label.visible:
+		performance_label.text = "FPS %d / 60 · 引擎幀時間 %.2f ms\nGodot 記憶體 %.1f MiB · VRAM %.1f MiB · Draw %d" % [Engine.get_frames_per_second(),Performance.get_monitor(Performance.TIME_PROCESS)*1000.0,Performance.get_monitor(Performance.MEMORY_STATIC)/1048576.0,Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)/1048576.0,Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]

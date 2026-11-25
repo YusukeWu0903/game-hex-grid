@@ -82,7 +82,7 @@ static func validate(value: Variant) -> Dictionary:
 		if not unit.get("cell") is Array or unit.cell.size()!=3:
 			return invalid("存檔座標格式錯誤。")
 		for coordinate in unit.cell:
-			if not integer(coordinate,-12,12):
+			if not integer(coordinate,-24,24):
 				return invalid("存檔座標超界。")
 		var cell = Vector3i(int(unit.cell[0]),int(unit.cell[1]),int(unit.cell[2]))
 		if Hex.terrain_cost(value.map,cell)<0 or seen_cells.has(Hex.key(cell)):

@@ -70,6 +70,7 @@ func run() -> void:
 	var pos = app.board.position_of(foe.cell)
 	check(Hex.from_pixel(pos-app.board.center(),app.board.hex_size()) == foe.cell,"panned cell hit test remains correct")
 	app.board.focus_cell(foe.cell)
+	await create_timer(0.9).timeout
 	check(app.board.position_of(foe.cell).distance_to(app.board.size*Vector2(0.5,0.49)) < 0.01,"focus centers target")
 	app.board.reset_camera()
 	check(app.board.pan_offset == Vector2.ZERO and app.board.zoom == 1.0,"camera reset")
