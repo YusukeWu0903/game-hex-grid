@@ -1,0 +1,867 @@
+{
+  "jobs": {
+    "swordsman": {
+      "name": "劍士",
+      "movement": 3,
+      "max_mp": 20,
+      "range_min": 1,
+      "range_max": 1,
+      "damage_type": "physical",
+      "defense": 0,
+      "resistance": 0,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 0,
+      "skill": {
+        "id": "swordsman_skill",
+        "name": "重擊",
+        "range_min": 1,
+        "range_max": 1,
+        "mp_cost": 10,
+        "damage": 7,
+        "damage_type": "physical",
+        "radius": 0,
+        "effect": "damage",
+        "guard": 0
+      }
+    },
+    "archer": {
+      "name": "弓箭手",
+      "movement": 2,
+      "max_mp": 30,
+      "range_min": 2,
+      "range_max": 3,
+      "damage_type": "physical",
+      "defense": 0,
+      "resistance": 0,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 0,
+      "skill": {
+        "id": "archer_skill",
+        "name": "強力射擊",
+        "range_min": 2,
+        "range_max": 4,
+        "mp_cost": 15,
+        "damage": 6,
+        "damage_type": "physical",
+        "radius": 0,
+        "effect": "damage",
+        "guard": 0
+      }
+    },
+    "mage": {
+      "name": "法師",
+      "movement": 3,
+      "max_mp": 30,
+      "range_min": 1,
+      "range_max": 3,
+      "damage_type": "magic",
+      "defense": 0,
+      "resistance": 2,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 4,
+      "skill": {
+        "id": "fire_burst",
+        "name": "烈焰爆破",
+        "range_min": 1,
+        "range_max": 3,
+        "mp_cost": 10,
+        "damage": 6,
+        "damage_type": "magic",
+        "radius": 1,
+        "effect": "damage",
+        "guard": 0
+      }
+    },
+    "knight": {
+      "name": "騎士",
+      "movement": 2,
+      "max_mp": 20,
+      "range_min": 1,
+      "range_max": 1,
+      "damage_type": "physical",
+      "defense": 2,
+      "resistance": 0,
+      "attack_damage": 4,
+      "enemy_damage": 3,
+      "attack_mp_cost": 0,
+      "skill": {
+        "id": "shield_wall",
+        "name": "盾牆",
+        "range_min": 0,
+        "range_max": 0,
+        "mp_cost": 6,
+        "damage": 0,
+        "damage_type": "physical",
+        "radius": 0,
+        "effect": "guard",
+        "guard": 3
+      }
+    }
+  },
+  "roster": [
+    {
+      "id": "player_swordsman_01",
+      "name": "艾爾",
+      "job": "swordsman",
+      "max_hp": 12
+    },
+    {
+      "id": "player_swordsman_02",
+      "name": "羅伊",
+      "job": "swordsman",
+      "max_hp": 11
+    },
+    {
+      "id": "player_archer_01",
+      "name": "琳恩",
+      "job": "archer",
+      "max_hp": 10
+    },
+    {
+      "id": "player_mage_01",
+      "name": "米菈",
+      "job": "mage",
+      "max_hp": 9
+    },
+    {
+      "id": "player_knight_01",
+      "name": "雷昂",
+      "job": "knight",
+      "max_hp": 16
+    },
+    {
+      "id": "player_archer_02",
+      "name": "諾亞",
+      "job": "archer",
+      "max_hp": 11
+    },
+    {
+      "id": "player_mage_02",
+      "name": "賽拉",
+      "job": "mage",
+      "max_hp": 8
+    },
+    {
+      "id": "player_knight_02",
+      "name": "布蘭",
+      "job": "knight",
+      "max_hp": 17
+    }
+  ],
+  "enemies": {
+    "enemy_swordsman_base": {
+      "id": "enemy_swordsman_base",
+      "name": "帝國步兵",
+      "job": "swordsman",
+      "max_hp": 12,
+      "loot_table": "common"
+    },
+    "enemy_archer_base": {
+      "id": "enemy_archer_base",
+      "name": "帝國弓手",
+      "job": "archer",
+      "max_hp": 10,
+      "loot_table": "common"
+    },
+    "enemy_heavy_guard": {
+      "id": "enemy_heavy_guard",
+      "name": "帝國重裝兵",
+      "job": "swordsman",
+      "max_hp": 18,
+      "loot_table": "elite"
+    },
+    "enemy_assassin": {
+      "id": "enemy_assassin",
+      "name": "帝國刺客",
+      "job": "swordsman",
+      "max_hp": 8,
+      "loot_table": "common"
+    },
+    "enemy_mage_base": {
+      "id": "enemy_mage_base",
+      "name": "帝國法師",
+      "job": "mage",
+      "max_hp": 9,
+      "loot_table": "common"
+    },
+    "enemy_knight_base": {
+      "id": "enemy_knight_base",
+      "name": "帝國騎士",
+      "job": "knight",
+      "max_hp": 16,
+      "loot_table": "elite"
+    }
+  },
+  "equipment": {
+    "iron_sword": {
+      "name": "鐵劍",
+      "slot": "weapon",
+      "jobs": [
+        "swordsman",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "longbow": {
+      "name": "長弓",
+      "slot": "weapon",
+      "jobs": [
+        "archer"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "oak_staff": {
+      "name": "橡木法杖",
+      "slot": "weapon",
+      "jobs": [
+        "mage"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "steel_sword": {
+      "name": "鋼劍",
+      "slot": "weapon",
+      "jobs": [
+        "swordsman",
+        "knight"
+      ],
+      "attack": 2,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "hunters_bow": {
+      "name": "獵人弓",
+      "slot": "weapon",
+      "jobs": [
+        "archer"
+      ],
+      "attack": 2,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "ember_staff": {
+      "name": "餘燼法杖",
+      "slot": "weapon",
+      "jobs": [
+        "mage"
+      ],
+      "attack": 0,
+      "magic": 2,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "leather_armor": {
+      "name": "皮甲",
+      "slot": "armor",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 1,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "plate_armor": {
+      "name": "鋼製鎧甲",
+      "slot": "armor",
+      "jobs": [
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 2,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    },
+    "ward_robe": {
+      "name": "護法長袍",
+      "slot": "armor",
+      "jobs": [
+        "mage"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 2,
+      "hp": 0,
+      "mp": 0
+    },
+    "vitality_ring": {
+      "name": "生命戒指",
+      "slot": "accessory",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "mage",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 3,
+      "mp": 0
+    },
+    "mana_charm": {
+      "name": "魔力護符",
+      "slot": "accessory",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "mage",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 5
+    },
+    "border_relic": {
+      "name": "邊境徽章",
+      "slot": "accessory",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "mage",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
+    }
+  },
+  "items": {
+    "potion": {
+      "name": "治療藥水",
+      "hp": 8,
+      "mp": 0,
+      "range": 1
+    },
+    "ether": {
+      "name": "魔力藥水",
+      "hp": 0,
+      "mp": 10,
+      "range": 1
+    },
+    "elixir": {
+      "name": "精製回復藥",
+      "hp": 12,
+      "mp": 10,
+      "range": 1
+    }
+  },
+  "loot_tables": {
+    "common": [
+      {
+        "item": "potion",
+        "chance": 0.35,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "item": "ether",
+        "chance": 0.15,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "elite": [
+      {
+        "item": "potion",
+        "chance": 0.5,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "item": "steel_sword",
+        "chance": 0.2,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "chest": [
+      {
+        "item": "potion",
+        "chance": 1.0,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "item": "ether",
+        "chance": 0.6,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "item": "vitality_ring",
+        "chance": 0.25,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "quest_relic": [
+      {
+        "item": "border_relic",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1
+      }
+    ]
+  },
+  "chest_tables": {
+    "wooden": {
+      "name": "木製寶箱",
+      "loot_table": "chest"
+    },
+    "central_relic": {
+      "name": "中央任務寶箱",
+      "loot_table": "quest_relic"
+    }
+  },
+  "starter_inventory": {
+    "iron_sword": 4,
+    "longbow": 2,
+    "oak_staff": 2,
+    "leather_armor": 2,
+    "plate_armor": 1,
+    "ward_robe": 1,
+    "potion": 5,
+    "ether": 3
+  },
+  "default_loadouts": {
+    "player_swordsman_01": {
+      "weapon": "iron_sword"
+    },
+    "player_swordsman_02": {
+      "weapon": "iron_sword"
+    },
+    "player_archer_01": {
+      "weapon": "longbow"
+    },
+    "player_mage_01": {
+      "weapon": "oak_staff"
+    },
+    "player_knight_01": {
+      "weapon": "iron_sword"
+    },
+    "player_archer_02": {
+      "weapon": "longbow"
+    },
+    "player_mage_02": {
+      "weapon": "oak_staff"
+    },
+    "player_knight_02": {
+      "weapon": "iron_sword"
+    }
+  },
+  "progression": {
+    "growth": {
+      "swordsman": {
+        "max_hp": 200,
+        "max_mp": 100,
+        "attack_bonus": 100,
+        "magic_bonus": 25,
+        "defense": 50,
+        "resistance": 25
+      },
+      "archer": {
+        "max_hp": 150,
+        "max_mp": 100,
+        "attack_bonus": 100,
+        "magic_bonus": 25,
+        "defense": 25,
+        "resistance": 25
+      },
+      "mage": {
+        "max_hp": 100,
+        "max_mp": 200,
+        "attack_bonus": 25,
+        "magic_bonus": 100,
+        "defense": 25,
+        "resistance": 50
+      },
+      "knight": {
+        "max_hp": 300,
+        "max_mp": 100,
+        "attack_bonus": 75,
+        "magic_bonus": 25,
+        "defense": 75,
+        "resistance": 25
+      }
+    },
+    "thresholds": [
+      0,
+      100,
+      225,
+      375,
+      550,
+      750,
+      975,
+      1225,
+      1500,
+      1800,
+      2125,
+      2475,
+      2850,
+      3250,
+      3675,
+      4125,
+      4600,
+      5100,
+      5625,
+      6175
+    ],
+    "rewards": {
+      "participation": 30,
+      "kill": 40
+    }
+  },
+  "dialogue_events": [
+    {
+      "id": "story_start",
+      "level_id": "mission_story",
+      "trigger": "START",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_start"
+    },
+    {
+      "id": "story_turn",
+      "level_id": "mission_story",
+      "trigger": "TURN",
+      "turn": 2,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_turn"
+    },
+    {
+      "id": "story_area",
+      "level_id": "mission_story",
+      "trigger": "AREA",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_area"
+    },
+    {
+      "id": "story_win",
+      "level_id": "mission_story",
+      "trigger": "VICTORY",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_win"
+    },
+    {
+      "id": "story_loss",
+      "level_id": "mission_story",
+      "trigger": "DEFEAT",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_loss"
+    },
+    {
+      "id": "chapter_enter",
+      "level_id": "chapter_treasure",
+      "trigger": "INTRO",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "chapter_intro"
+    },
+    {
+      "id": "chapter_open",
+      "level_id": "chapter_treasure",
+      "trigger": "CHEST",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "chapter_chest"
+    },
+    {
+      "id": "chapter_end",
+      "level_id": "chapter_treasure",
+      "trigger": "OUTRO",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "chapter_outro"
+    },
+    {
+      "id": "chapter_fail",
+      "level_id": "chapter_treasure",
+      "trigger": "DEFEAT",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "common_defeat"
+    }
+  ],
+  "dialogues": {
+    "border_start": [
+      {
+        "id": "border_001",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "晨霧散去，隊伍在邊境集結。"
+      },
+      {
+        "id": "border_002",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "前方就是集結區。先確認彼此的位置，再一起推進。"
+      },
+      {
+        "id": "border_003",
+        "order": 3,
+        "speaker": "琳恩",
+        "portrait": "player_archer_01",
+        "side": "LEFT",
+        "text": "我會看住遠處。別讓敵人繞到我們背後。"
+      },
+      {
+        "id": "border_004",
+        "order": 4,
+        "speaker": "帝國騎士",
+        "portrait": "knight_enemy",
+        "side": "RIGHT",
+        "text": "守住陣線，不准他們通過！"
+      }
+    ],
+    "border_turn": [
+      {
+        "id": "border_005",
+        "order": 1,
+        "speaker": "米菈",
+        "portrait": "player_mage_01",
+        "side": "LEFT",
+        "text": "戰線已經展開。留意魔力，別把所有力量一次用盡。"
+      }
+    ],
+    "border_area": [
+      {
+        "id": "border_006",
+        "order": 1,
+        "speaker": "雷昂",
+        "portrait": "player_knight_01",
+        "side": "LEFT",
+        "text": "已經抵達中央。我來守住這裡，你們繼續前進。"
+      }
+    ],
+    "border_win": [
+      {
+        "id": "border_007",
+        "order": 1,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "附近已經安全了。清點物資，確認所有人都回來。"
+      }
+    ],
+    "border_loss": [
+      {
+        "id": "border_008",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "隊伍失去了繼續戰鬥的能力。可以回溯回合，重新安排進攻。"
+      }
+    ],
+    "chapter_intro": [
+      {
+        "id": "chapter_i01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "中央的寶箱仍留在戰場上，敵軍已經封住前路。"
+      },
+      {
+        "id": "chapter_i02",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "我們要取回寶箱裡的寶物，也要清除所有敵軍，才能安全撤離。"
+      },
+      {
+        "id": "chapter_i03",
+        "order": 3,
+        "speaker": "琳恩",
+        "portrait": "player_archer_01",
+        "side": "LEFT",
+        "text": "先決定出戰人員與陣形。我會留意敵方弓箭手。"
+      }
+    ],
+    "chapter_chest": [
+      {
+        "id": "chapter_c01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "箱蓋緩緩打開。隊伍取得了「邊境徽章」。"
+      },
+      {
+        "id": "chapter_c02",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "寶物已經找到了。確認戰場安全後，再一起帶回去。"
+      }
+    ],
+    "chapter_outro": [
+      {
+        "id": "chapter_o01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "戰利品與作戰經驗已完成清點，隊伍準備離開。"
+      },
+      {
+        "id": "chapter_o02",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "任務完成。大家辛苦了，回去休息吧。"
+      },
+      {
+        "id": "chapter_o03",
+        "order": 3,
+        "speaker": "琳恩",
+        "portrait": "player_archer_01",
+        "side": "LEFT",
+        "text": "全員準備撤離。下一次，也要一起回來。"
+      }
+    ],
+    "common_defeat": [
+      {
+        "id": "common_d01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "這次作戰未能完成。隊伍已無法按照原計畫繼續前進。"
+      },
+      {
+        "id": "common_d02",
+        "order": 2,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "可以退出關卡、回溯至先前回合，或重新整備再戰。"
+      }
+    ]
+  },
+  "dialogue_sections": {
+    "border_start": {
+      "name": "舊演示：開戰",
+      "description": "保留原演示關卡與舊台詞 ID"
+    },
+    "border_turn": {
+      "name": "舊演示：第二回合",
+      "description": "回合提醒"
+    },
+    "border_area": {
+      "name": "舊演示：抵達中央",
+      "description": "區域提醒"
+    },
+    "border_win": {
+      "name": "舊演示：勝利",
+      "description": "結算前對話"
+    },
+    "border_loss": {
+      "name": "舊演示：失敗",
+      "description": "保留舊演示失敗段落"
+    },
+    "chapter_intro": {
+      "name": "邊境尋寶：開場",
+      "description": "進入關卡後、選兵部署前"
+    },
+    "chapter_chest": {
+      "name": "邊境尋寶：開啟中央寶箱",
+      "description": "取得寶物後；結算前仍可回溯"
+    },
+    "chapter_outro": {
+      "name": "邊境尋寶：結尾",
+      "description": "確認結算後播放，完成即退出關卡"
+    },
+    "common_defeat": {
+      "name": "通用：戰鬥失敗",
+      "description": "可由不同關卡事件共用，播放後顯示失敗選單"
+    }
+  },
+  "chapter_rules": {
+    "chapter_treasure": {
+      "name": "邊境尋寶：中央的寶物",
+      "map_id": "map_chapter",
+      "chest": "0,0,0",
+      "treasure": "border_relic",
+      "deploy_limit": 5
+    }
+  }
+}

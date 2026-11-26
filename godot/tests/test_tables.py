@@ -1,0 +1,73 @@
+import copy
+import importlib.util
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+ROOT=Path(__file__).resolve().parents[1]
+spec=importlib.util.spec_from_file_location("tables",ROOT/"tools/export_tables.py")
+m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+class Tables(unittest.TestCase):
+ def test_dialogue_validation(self):
+  self.assertEqual(len([e for e in m.compile_tables(self.rows)['dialogue_events'] if e['level_id']=='mission_story']),5)
+ def test_chapter_sections(self):
+  result=m.compile_tables(self.rows)
+  self.assertIn('common_defeat',result['dialogue_sections'])
+  self.assertEqual(result['chapter_rules']['chapter_treasure']['treasure'],'border_relic')
+  for sheet,col,value in [('劇情區段',0,'missing'),('劇情事件',8,'missing'),('關卡流程',3,'1,1,-2'),('關卡流程',4,'healing_potion')]:
+   data=copy.deepcopy(self.rows);data[sheet][0][1][col]=value
+   with self.assertRaises(m.TableError):m.compile_tables(data)
+  for sheet,row,col,value in [('劇情事件',0,2,'INVALID'),('劇情事件',0,8,'missing'),('劇情事件',0,4,'missing'),('劇情台詞',0,4,'../secret'),('劇情台詞',0,6,'字'*161),('劇情台詞',0,5,'CENTER')]:
+   data=copy.deepcopy(self.rows);data[sheet][row][1][col]=value
+   with self.assertRaises(m.TableError):m.compile_tables(data)
+ def test_dialogue_edit_and_order(self):
+  self.rows['劇情台詞'][0][1][6]='測試新台詞'
+  self.rows['劇情台詞'].reverse()
+  self.assertEqual(m.compile_tables(self.rows)['dialogues']['border_start'][0]['text'],'測試新台詞')
+ def setUp(self): self.rows=m.read_xlsx(ROOT/"data/tables/GameData.xlsx")
+ def test_export_roundtrip(self):
+  result=m.compile_tables(self.rows)
+  self.assertEqual(len(result["jobs"]),4)
+  self.assertEqual(len(result["roster"]),8)
+  self.assertEqual(result["jobs"]["mage"]["skill"]["radius"],1)
+  self.assertEqual(result["jobs"]["knight"]["defense"],2)
+ def test_edit_changes_export(self):
+  self.rows["職業"][2][1][10]=9
+  self.assertEqual(m.compile_tables(self.rows)["jobs"]["mage"]["attack_damage"],9)
+ def test_progression_tables(self):
+  result=m.compile_tables(self.rows)['progression']
+  self.assertEqual(result['thresholds'][:3],[0,100,225])
+  self.assertEqual(result['growth']['mage']['magic_bonus'],100)
+  for sheet,mutate in [('等級',lambda rows:rows.pop()),('成長',lambda rows:rows.pop()),('經驗獎勵',lambda rows:rows.pop())]:
+   data=copy.deepcopy(self.rows);mutate(data[sheet])
+   with self.assertRaises(m.TableError):m.compile_tables(data)
+  self.rows['等級'][1][1][2]=0
+  with self.assertRaisesRegex(m.TableError,'遞增'):m.compile_tables(self.rows)
+ def test_progression_edit(self):
+  self.rows['成長'][0][1][1]=250
+  self.rows['經驗獎勵'][0][1][1]=35
+  data=m.compile_tables(self.rows)['progression']
+  self.assertEqual(data['growth']['swordsman']['max_hp'],250)
+  self.assertEqual(data['rewards']['participation'],35)
+ def test_bad_rows_report_location(self):
+  mutations=[("職業",0,2,-1),("職業",0,9,"missing"),("角色",0,2,"missing"),("掉落",0,2,1.5),("掉落",0,1,"missing"),("裝備",0,2,"head"),("初始裝備",0,2,"oak_staff"),("道具",0,2,0.5)]
+  for sheet,row,col,value in mutations:
+   with self.subTest(sheet=sheet,value=value):
+    data=copy.deepcopy(self.rows);data[sheet][row][1][col]=value
+    with self.assertRaisesRegex(m.TableError,sheet+" 第 "):m.compile_tables(data)
+ def test_duplicate_id(self):
+  self.rows["角色"].append((100,self.rows["角色"][0][1]))
+  with self.assertRaisesRegex(m.TableError,"角色 第 100 列"):m.compile_tables(self.rows)
+ def test_invalid_export_preserves_target(self):
+  self.rows["掉落"][0][1][2]=-1
+  with tempfile.TemporaryDirectory() as directory:
+   output=Path(directory)/"catalog.json";output.write_text("original")
+   with patch.object(m,"read_xlsx",return_value=self.rows):
+    with self.assertRaises(m.TableError):m.export("ignored",output)
+   self.assertEqual(output.read_text(),"original")
+ def test_check_does_not_write(self):
+  with tempfile.TemporaryDirectory() as directory:
+   output=Path(directory)/"missing.json"
+   m.export(ROOT/"data/tables/GameData.xlsx",output,True)
+   self.assertFalse(output.exists())
+if __name__=="__main__":unittest.main()

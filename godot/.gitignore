@@ -1,0 +1,7 @@
+.godot/
+user_data/
+*.tmp
+*.log
+
+data/catalog.json.bak
+__pycache__/
