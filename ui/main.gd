@@ -40,6 +40,8 @@ var battle
 var board
 var audio
 var cinematic
+var story_overlay
+const Story = preload("res://core/story_dialogue.gd")
 var combat_cinematics = true
 var radial_actions
 var sidebar: VBoxContainer
@@ -88,6 +90,12 @@ func _ready() -> void:
 	battle = Session.new()
 	build_theme()
 	build_shell()
+	story_overlay = preload("res://ui/story_dialogue.gd").new()
+	add_child(story_overlay)
+	story_overlay.finished.connect(func():
+		busy = false
+		after_action()
+	)
 	level = store.levels[0].duplicate(true)
 	show_menu()
 	if not store.last_error.is_empty():
@@ -365,6 +373,7 @@ func confirm(text: String, callback: Callable) -> void:
 
 func invalidate_animation() -> void:
 	generation += 1
+	if is_instance_valid(story_overlay): story_overlay.abort()
 	if cinematic != null:
 		cinematic.abort()
 	if active_tween != null and active_tween.is_valid():
@@ -505,6 +514,7 @@ func start_battle() -> void:
 		return
 	battle_ui()
 	notice("第 1 回合：選擇我方角色。")
+	play_story()
 
 func selected_unit() -> Dictionary:
 	return battle.get_unit(selection)
@@ -640,6 +650,7 @@ func end_turn() -> void:
 	after_action()
 
 func after_action() -> void:
+	if play_story(): return
 	if battle.phase == "RESULT":
 		mode = "RESULT"
 		busy = false
@@ -804,6 +815,7 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 		action_mode = "COMMAND"
 		battle_ui()
 		notice("移動完成。從角色周圍選擇攻擊、技能或待機。")
+		play_story()
 	elif action_mode in ["ATTACK","SKILL"]:
 		var attacker_snapshot = selected_unit().duplicate(true)
 		var target_snapshot = clicked.duplicate(true)
@@ -903,6 +915,7 @@ func run_enemy_turn() -> void:
 		action_mode = "MOVE"
 		battle_ui()
 		notice("第 %d 回合：我方行動。" % battle.turn)
+		play_story()
 
 func show_result_controls() -> void:
 	var victory = battle.result == "VICTORY"
@@ -1319,6 +1332,7 @@ func load_battle(from_backup: bool = false) -> void:
 	board.reset_camera()
 	battle_ui()
 	notice("%s第 %d 回合；HP／MP 與已移動／已行動狀態均保留。" % ["已從備份恢復" if from_backup else "已繼續",battle.turn])
+	play_story()
 
 func persist_preferences() -> void:
 	var error = preferences.save()
@@ -1349,3 +1363,15 @@ func rewind_battle(target: int) -> void:
 		action_mode = "COMMAND"
 		battle_ui()
 		notice("已回到第 %d 回合開始；背包、寶箱與隨機狀態同步還原。" % target)
+		play_story()
+
+func play_story() -> bool:
+	if is_instance_valid(story_overlay) and story_overlay.visible: return true
+	if not mode in ["BATTLE","RESULT"]: return false
+	var queue = Story.collect(battle)
+	if queue.is_empty(): return false
+	busy = true
+	selection = ""
+	battle_ui()
+	story_overlay.play(queue,battle.story)
+	return true

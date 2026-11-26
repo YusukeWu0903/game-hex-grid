@@ -37,3 +37,10 @@ RTX 3060、Compatibility、1440×900、60 FPS 上限，最大半徑 24 地圖：
 同機 RTX 3060、OpenGL Compatibility、1440×900 地圖編輯器取樣：閒置／一般平移／縮小平移各 180 幀，中位幀時間均約 16.67 ms（60 FPS 上限）；P95 為 16.842／16.711／16.710 ms，Godot 靜態記憶體最高 71.37 MiB，顯示記憶體約 16.37 MiB。生成半徑 24 地圖約 1.093 秒。這是地圖場景短取樣，並非全戰役／所有硬體／功耗或長時間洩漏驗證，也不含全部立繪紋理載入後的記憶體。
 
 等級只在事件／建立單位時更新；立繪紋理及 Alpha 範圍僅首次快取。證據：D:/Codex/visualizations/2026-11-26/hex-level-system/performance.json、performance-rpg.json。
+# 2026-11-26 對話系統短測
+
+`tests/profile_story.gd` 在 RTX 3060、Compatibility renderer、60 FPS 上限下採樣 180 幀：中位 16.681ms、P95 16.856ms、Godot 靜態記憶體最大 71.75MiB、視訊記憶體 24.52MiB。本次只有一個角色立繪快取，結束時快取與 TextureRect 引用皆已清空。這是短測，未宣稱長時間無洩漏或各硬體一致。
+
+示範 5 事件的條件判斷 10000 次平均約 10–12µs；只在戰況更新邊界呼叫，不在每幀掃描。200 回合合成歷史約 3.21MiB、快照 481357 bytes、回溯 2.94ms、驗證 374.67ms；此項與 UI 回歸同期執行，不用來比較前後 CPU 速度。同步 AI 規劃本次 63–67ms，仍有既存的短暫阻塞風險；對話本身未解決此項。
+
+原始結果：`D:/Codex/visualizations/2026-11-26/hex-dialogue/performance-story.json` 與 `performance-rpg.json`。

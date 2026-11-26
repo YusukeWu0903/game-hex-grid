@@ -8,6 +8,15 @@ ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location("tables",ROOT/"tools/export_tables.py")
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class Tables(unittest.TestCase):
+ def test_dialogue_validation(self):
+  self.assertEqual(len(m.compile_tables(self.rows)['dialogue_events']),5)
+  for sheet,row,col,value in [('劇情事件',0,2,'INVALID'),('劇情事件',0,8,'missing'),('劇情事件',0,4,'missing'),('劇情台詞',0,4,'../secret'),('劇情台詞',0,6,'字'*161),('劇情台詞',0,5,'CENTER')]:
+   data=copy.deepcopy(self.rows);data[sheet][row][1][col]=value
+   with self.assertRaises(m.TableError):m.compile_tables(data)
+ def test_dialogue_edit_and_order(self):
+  self.rows['劇情台詞'][0][1][6]='測試新台詞'
+  self.rows['劇情台詞'].reverse()
+  self.assertEqual(m.compile_tables(self.rows)['dialogues']['border_start'][0]['text'],'測試新台詞')
  def setUp(self): self.rows=m.read_xlsx(ROOT/"data/tables/GameData.xlsx")
  def test_export_roundtrip(self):
   result=m.compile_tables(self.rows)

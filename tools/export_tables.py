@@ -12,6 +12,8 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 SCHEMA = {
+    '劇情事件': ['id','關卡ID','觸發','回合','角色ID','q','r','半徑','劇本ID'],
+    '劇情台詞': ['id','劇本ID','順序','說話者','立繪','位置','台詞'],
     '成長': ['id','HP百分點','MP百分點','物攻百分點','魔攻百分點','物防百分點','魔防百分點'],
     '等級': ['id','等級','累積經驗'],
     '經驗獎勵': ['id','經驗'],
@@ -73,6 +75,8 @@ def read_xlsx(path):
 def compile_tables(tables):
     d = {'jobs':{},'roster':[],'enemies':{},'equipment':{},'items':{},'loot_tables':{},'chest_tables':{},'starter_inventory':{},'default_loadouts':{}}
     d['progression'] = {'growth':{},'thresholds':[], 'rewards':{}}
+    d['dialogue_events'] = []
+    d['dialogues'] = {}
     levels = {}
     skills = {}
     loc = {}
@@ -93,7 +97,20 @@ def compile_tables(tables):
                 loc[sheet,id] = row
             if '名稱' in v and (not isinstance(v['名稱'],str) or not v['名稱'].strip()): fail(sheet,row,'名稱不可空白')
             n = lambda key,lo=0,hi=999: number(v[key],sheet,row,lo,hi)
-            if sheet=='成長':
+            if sheet=='劇情事件':
+                if v['觸發'] not in ('START','TURN','AREA','VICTORY','DEFEAT'): fail(sheet,row,'觸發必須是 START、TURN、AREA、VICTORY、DEFEAT')
+                d['dialogue_events'].append(dict(id=id,level_id=identity(v['關卡ID'],sheet,row),trigger=v['觸發'],turn=n('回合',1,999),actor=v['角色ID'],q=n('q',-24,24),r=n('r',-24,24),radius=n('半徑',0,24),script_id=identity(v['劇本ID'],sheet,row)))
+            elif sheet=='劇情台詞':
+                sid=identity(v['劇本ID'],sheet,row)
+                if v['位置'] not in ('LEFT','RIGHT'): fail(sheet,row,'位置必須是 LEFT 或 RIGHT')
+                if not isinstance(v['台詞'],str) or not 1<=len(v['台詞'])<=160: fail(sheet,row,'每句台詞須為 1–160 字，長文請拆句')
+                if not isinstance(v['說話者'],str) or len(v['說話者'])>24: fail(sheet,row,'說話者至多 24 字；空白為旁白')
+                portrait=v['立繪']
+                if portrait:
+                    identity(portrait,sheet,row)
+                    if not (Path(__file__).resolve().parents[1]/'assets/portraits'/f'{portrait}.png').is_file(): fail(sheet,row,'找不到已採用立繪：'+portrait)
+                d['dialogues'].setdefault(sid,[]).append(dict(id=id,order=n('順序',1,999),speaker=v['說話者'],portrait=portrait,side=v['位置'],text=v['台詞']))
+            elif sheet=='成長':
                 d['progression']['growth'][id] = {field:n(key,0,1000) for field,key in zip(['max_hp','max_mp','attack_bonus','magic_bonus','defense','resistance'],SCHEMA[sheet][1:])}
             elif sheet=='等級':
                 lv=n('等級',1,20)
@@ -161,6 +178,14 @@ def compile_tables(tables):
     if set(d['progression']['growth'])!=set(d['jobs']): raise TableError('成長表必須涵蓋每個職業，且不可有未知職業')
     if set(d['progression']['rewards'])!={'participation','kill'}: raise TableError('經驗獎勵必須包含 participation 與 kill')
     d['progression']['thresholds']=[levels[i] for i in range(1,21)]
+    if len(d['dialogue_events'])>128: raise TableError('劇情事件上限為 128')
+    for sid,lines in d['dialogues'].items():
+        if len(lines)>128 or len({line['order'] for line in lines})!=len(lines): raise TableError('每段劇本上限 128 句且順序不可重複：'+sid)
+        lines.sort(key=lambda line:line['order'])
+    for event in d['dialogue_events']:
+        ref(event['script_id'],d['dialogues'],'劇情事件',loc['劇情事件',event['id']])
+        if event['actor']: ref(event['actor'],roster,'劇情事件',loc['劇情事件',event['id']])
+        if abs(event['q']+event['r'])>24: raise TableError('劇情區域超出半徑 24')
     return d
 
 def export(source,destination,check_only=False):

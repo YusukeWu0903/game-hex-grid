@@ -54,6 +54,10 @@ func load_library() -> void:
 		exercise.goalRadius = 0
 		exercise.turnLimit = 8 if kind=="REACH" else 0
 		levels.append(exercise)
+	var story_level = expedition.duplicate(true)
+	story_level.levelId = "mission_story"
+	story_level.name = "劇情演示：邊境集結"
+	levels.append(story_level)
 	if not FileAccess.file_exists(storage_path):
 		return
 	var value = JSON.parse_string(FileAccess.get_file_as_string(storage_path))

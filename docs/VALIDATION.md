@@ -173,3 +173,11 @@ UI 的 38 項包含 11 張截圖保存檢查；數字不是 173 個獨立玩法�
 舊隊伍與舊戰鬥資料相容、儲存失敗不提交 EXP、已結算防重領、候補不獲參戰 EXP、倒下者保留本場所得、範圍技逐人計殺、回溯還原與 20 級封頂已驗證。新數值未做完整長期戰役平衡。
 
 首次沙箱 editor import 因無法保存 C 槽 Godot 全域設定與讀根憑證而輸出環境錯誤；資源匯入完成，後續完整遊戲測試在正常本機權限執行皆通過。測試沒有覆蓋實際玩家存檔。效能數據與限制見 PERFORMANCE.md。全部本輪證據位於 D:/Codex/visualizations/2026-11-26/hex-level-system/。
+# 2026-11-26 對話系統 A 驗證
+
+- 完整回歸：`Run_Tests.ps1 -EvidenceRoot D:/Codex/visualizations/2026-11-26/hex-dialogue -FullPlaythrough`，31 套、2275 項通過；紀錄 `run-20261126-160101`。
+- 新增對話核心 16 項、實際 Godot UI 20 項。涵蓋五種觸發、已讀去重、未知紀錄拒絕、存讀檔、回溯重播、鍵盤長按、快顯／下一句、歷史返回、略過、勝利後單次結算及取消清理。兩原關卡完整 UI 戰鬥仍通過。
+- `python tests/test_tables.py`：10 項通過。所有 15 張資料表與匯出前中介資料逐值比對一致，既有資料保留；兩新表已渲染檢查。
+- 實際截圖 `dialogue-hero.png`、`dialogue-enemy.png`、`dialogue-small.png`：代理確認人物位置、向內朝向、姓名及台詞可讀。使用者視覺接受尚待回覆。
+- 初次 UI 測試沒有刷新 Godot 緩衝輸入而失敗；加入 `Input.flush_buffered_events()` 後真實輸入派送及完整回歸通過，未用直接呼叫閱讀方法取代鍵盤測例。
+- 所有測試透過 HEX_TACTICS_DATA_DIR / HEX_TACTICS_TEST_DIR 隔離於 D 槽任務目錄，未使用玩家正式進度。

@@ -523,5 +523,138 @@
       "participation": 30,
       "kill": 40
     }
+  },
+  "dialogue_events": [
+    {
+      "id": "story_start",
+      "level_id": "mission_story",
+      "trigger": "START",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_start"
+    },
+    {
+      "id": "story_turn",
+      "level_id": "mission_story",
+      "trigger": "TURN",
+      "turn": 2,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_turn"
+    },
+    {
+      "id": "story_area",
+      "level_id": "mission_story",
+      "trigger": "AREA",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_area"
+    },
+    {
+      "id": "story_win",
+      "level_id": "mission_story",
+      "trigger": "VICTORY",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_win"
+    },
+    {
+      "id": "story_loss",
+      "level_id": "mission_story",
+      "trigger": "DEFEAT",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "border_loss"
+    }
+  ],
+  "dialogues": {
+    "border_start": [
+      {
+        "id": "border_001",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "晨霧散去，隊伍在邊境集結。"
+      },
+      {
+        "id": "border_002",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "前方就是集結區。先確認彼此的位置，再一起推進。"
+      },
+      {
+        "id": "border_003",
+        "order": 3,
+        "speaker": "琳恩",
+        "portrait": "player_archer_01",
+        "side": "LEFT",
+        "text": "我會看住遠處。別讓敵人繞到我們背後。"
+      },
+      {
+        "id": "border_004",
+        "order": 4,
+        "speaker": "帝國騎士",
+        "portrait": "knight_enemy",
+        "side": "RIGHT",
+        "text": "守住陣線，不准他們通過！"
+      }
+    ],
+    "border_turn": [
+      {
+        "id": "border_005",
+        "order": 1,
+        "speaker": "米菈",
+        "portrait": "player_mage_01",
+        "side": "LEFT",
+        "text": "戰線已經展開。留意魔力，別把所有力量一次用盡。"
+      }
+    ],
+    "border_area": [
+      {
+        "id": "border_006",
+        "order": 1,
+        "speaker": "雷昂",
+        "portrait": "player_knight_01",
+        "side": "LEFT",
+        "text": "已經抵達中央。我來守住這裡，你們繼續前進。"
+      }
+    ],
+    "border_win": [
+      {
+        "id": "border_007",
+        "order": 1,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "附近已經安全了。清點物資，確認所有人都回來。"
+      }
+    ],
+    "border_loss": [
+      {
+        "id": "border_008",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "隊伍失去了繼續戰鬥的能力。可以回溯回合，重新安排進攻。"
+      }
+    ]
   }
 }

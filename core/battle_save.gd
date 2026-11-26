@@ -198,6 +198,7 @@ static func restore(session: RefCounted, loaded: Dictionary) -> void:
 
 static func validate_rpg(rpg: Variant, payload: Dictionary) -> String:
 	if not rpg is Dictionary: return "缺少戰鬥擴充資料。"
+	if not preload("res://core/story_dialogue.gd").valid(rpg.get("story",{"seen":[],"log":[]}),str(payload.level.get("levelId",""))): return "劇情紀錄無效。"
 	if not Progression.valid(rpg.get("progression",{})): return "角色經驗資料無效。"
 	if not rpg.get("pending_exp",{}) is Dictionary: return "暫存經驗格式無效。"
 	for id in rpg.get("pending_exp",{}):

@@ -27,6 +27,7 @@ var settled = false
 var progression: Dictionary = {}
 var pending_exp: Dictionary = {}
 var experience_results: Dictionary = {}
+var story: Dictionary = {"seen":[],"log":[]}
 
 func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array, config: Dictionary = {}) -> Array[String]:
 	var errors = Hex.validate_map(new_map)
@@ -60,6 +61,7 @@ func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array, config: D
 	if not errors.is_empty():
 		return errors
 	mission = config.duplicate(true)
+	story = {"seen":[],"log":[]}
 	result_reason = ""
 	map = new_map.duplicate(true)
 	allowed_ids = roster_ids.duplicate()
@@ -314,7 +316,7 @@ func roll_loot(table_id: String) -> void:
 			pending_loot[row.item] = int(pending_loot.get(row.item,0))+count
 
 func round_state() -> Dictionary:
-	return {"turn":turn,"units":units.duplicate(true),"inventory":inventory.duplicate(true),"pending_loot":pending_loot.duplicate(true),"pending_exp":pending_exp.duplicate(true),"opened_chests":opened_chests.duplicate(true),"defeated_ids":defeated_ids.duplicate(true),"rng_state":str(rng.state)}
+	return {"story":story.duplicate(true),"turn":turn,"units":units.duplicate(true),"inventory":inventory.duplicate(true),"pending_loot":pending_loot.duplicate(true),"pending_exp":pending_exp.duplicate(true),"opened_chests":opened_chests.duplicate(true),"defeated_ids":defeated_ids.duplicate(true),"rng_state":str(rng.state)}
 
 func capture_round() -> void:
 	history.append(round_state())
@@ -325,6 +327,7 @@ func rewind_to(round_number: int) -> bool:
 		if int(history[i].turn)!=round_number: continue
 		var state = history[i].duplicate(true)
 		units = state.units
+		story = state.get("story",{"seen":[],"log":[]}).duplicate(true)
 		inventory = state.inventory
 		pending_loot = state.pending_loot
 		pending_exp = state.get("pending_exp",{}).duplicate(true)
@@ -353,6 +356,7 @@ func export_rpg() -> Dictionary:
 	return value
 
 func import_rpg(value: Dictionary) -> void:
+	story = value.get("story",{"seen":[],"log":[]}).duplicate(true)
 	progression = Catalog.normalize_numbers(value.get("progression",{}).duplicate(true))
 	pending_exp = Catalog.normalize_numbers(value.get("pending_exp",{}).duplicate(true))
 	experience_results = {}
