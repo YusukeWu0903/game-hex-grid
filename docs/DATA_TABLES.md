@@ -1,5 +1,7 @@
 # Excel 資料編輯流程
 
+最新為 18 表，劇情區段、事件、台詞與關卡流程的欄位關係及範例見 [CHAPTER_FLOW.md](CHAPTER_FLOW.md)。區段命名獨立管理，通用失敗區段可跨關卡重用。
+
 1. 關閉遊戲，以 Excel 編輯 `data/tables/GameData.xlsx`，先備份工作簿。
 2. 保留第 1 列欄位名稱，從第 2 列編輯資料。ID 是關聯鍵，既有角色與職業 ID 不可任意改名。
 3. 保存並執行專案根目錄 `Export_Data.cmd`（Python 3）。也可執行 `python tools/export_tables.py --check` 只驗證。

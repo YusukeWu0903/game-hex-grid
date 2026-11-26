@@ -1,7 +1,7 @@
 extends RefCounted
 const Hex = preload("res://core/hex_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
-const TYPES = ["ANNIHILATION","TARGET","SURVIVE","REACH"]
+const TYPES = ["ANNIHILATION","TARGET","SURVIVE","REACH","CHEST_AND_ALL"]
 static func integer(value: Variant, lo: int, hi: int) -> bool:
 	return (value is int or value is float) and is_finite(float(value)) and float(value)==floorf(float(value)) and value>=lo and value<=hi
 static func required(level: Dictionary) -> Array:
@@ -40,6 +40,14 @@ static func validate(level: Dictionary, map: Dictionary = {}) -> Array[String]:
 	if not integer(level.get("turnLimit",0),0,9999): errors.append("回合上限必須為 0–9999；0 表示不限。")
 	if not errors.is_empty(): return errors
 	match level.get("winCondition"):
+		"CHEST_AND_ALL":
+			var key = level.get("requiredChest","")
+			var item = level.get("requiredTreasure","")
+			if not key is String or key.is_empty() or not Catalog.data().equipment.has(item): errors.append("寶箱目標或任務寶物無效。")
+			elif not map.is_empty():
+				var definition = Catalog.data().chest_tables.get(map.get("chests",{}).get(key,""),{})
+				var rows = Catalog.data().loot_tables.get(definition.get("loot_table",""),[])
+				if rows.filter(func(r): return r.item==item and float(r.chance)==1.0 and int(r.min)>=1).is_empty(): errors.append("指定寶箱必須保證取得任務寶物。")
 		"TARGET":
 			if not integer(level.get("targetEnemyIndex",-1),0,level.get("enemyIds",[]).size()-1): errors.append("請指定有效的敵方目標序號。")
 		"SURVIVE":
@@ -67,7 +75,7 @@ static func selection_errors(level: Dictionary, ids: Array) -> Array[String]:
 	for id in required(level):
 		if not ids.has(id): errors.append("缺少必出角色："+Catalog.player(id,Vector3i.ZERO).name)
 	return errors
-static func evaluate(level: Dictionary, units: Array, turn: int, defeated: Dictionary, round_end: bool = false) -> Dictionary:
+static func evaluate(level: Dictionary, units: Array, turn: int, defeated: Dictionary, round_end: bool = false, opened: Dictionary = {}, loot: Dictionary = {}) -> Dictionary:
 	var players = units.filter(func(u): return u.faction=="PLAYER" and u.hp>0)
 	var enemies = units.filter(func(u): return u.faction=="ENEMY" and u.hp>0)
 	if players.is_empty(): return {"result":"DEFEAT","reason":"我方全軍覆沒。"}
@@ -75,6 +83,7 @@ static func evaluate(level: Dictionary, units: Array, turn: int, defeated: Dicti
 		if players.filter(func(u): return u.id==id).is_empty(): return {"result":"DEFEAT","reason":"保護對象已倒下："+Catalog.player(id,Vector3i.ZERO).name}
 	var victory = false
 	match level.get("winCondition","ANNIHILATION"):
+		"CHEST_AND_ALL": victory = enemies.is_empty() and opened.has(level.get("requiredChest","")) and int(loot.get(level.get("requiredTreasure",""),0))>0
 		"ANNIHILATION": victory = enemies.is_empty()
 		"TARGET": victory = defeated.has("enemy_%d" % int(level.get("targetEnemyIndex",0)))
 		"SURVIVE": victory = round_end and turn>=int(level.get("surviveTurns",1))
@@ -88,6 +97,7 @@ static func evaluate(level: Dictionary, units: Array, turn: int, defeated: Dicti
 	return {"result":"","reason":""}
 static func victory_text(level: Dictionary) -> String:
 	match level.get("winCondition","ANNIHILATION"):
+		"CHEST_AND_ALL": return "開啟中央寶箱取得%s，並全滅敵軍" % Catalog.item_name(level.get("requiredTreasure",""))
 		"TARGET":
 			var index = int(level.get("targetEnemyIndex",-1))
 			var enemies = level.get("enemyIds",[])

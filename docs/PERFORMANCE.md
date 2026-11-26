@@ -44,3 +44,6 @@ RTX 3060、Compatibility、1440×900、60 FPS 上限，最大半徑 24 地圖：
 示範 5 事件的條件判斷 10000 次平均約 10–12µs；只在戰況更新邊界呼叫，不在每幀掃描。200 回合合成歷史約 3.21MiB、快照 481357 bytes、回溯 2.94ms、驗證 374.67ms；此項與 UI 回歸同期執行，不用來比較前後 CPU 速度。同步 AI 規劃本次 63–67ms，仍有既存的短暫阻塞風險；對話本身未解決此項。
 
 原始結果：`D:/Codex/visualizations/2026-11-26/hex-dialogue/performance-story.json` 與 `performance-rpg.json`。
+# 2026-11-26 完整關卡流程後短測
+
+沿用實際對話畫面採樣 180 幀，中位 16.675ms、P95 16.91ms，Godot 靜態記憶體最大 71.96MiB、VRAM 24.52MiB；對話結束後快取引用清空。結果位於 `D:/Codex/visualizations/2026-11-26/hex-chapter-flow/final-ui/performance-story.json`。事件仍只在狀態邊界判斷；戰前快照僅變動時寫入，測試確認同內容刷新不重寫。短測不代表長時間洩漏或新關卡平衡驗證。

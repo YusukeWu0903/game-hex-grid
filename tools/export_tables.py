@@ -12,8 +12,10 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 SCHEMA = {
-    '劇情事件': ['id','關卡ID','觸發','回合','角色ID','q','r','半徑','劇本ID'],
-    '劇情台詞': ['id','劇本ID','順序','說話者','立繪','位置','台詞'],
+    '劇情區段': ['id','名稱','說明'],
+    '關卡流程': ['id','名稱','地圖ID','寶箱座標','寶物ID','出戰上限'],
+    '劇情事件': ['id','關卡ID','觸發','回合','角色ID','q','r','半徑','區段ID'],
+    '劇情台詞': ['id','區段ID','順序','說話者','立繪','位置','台詞'],
     '成長': ['id','HP百分點','MP百分點','物攻百分點','魔攻百分點','物防百分點','魔防百分點'],
     '等級': ['id','等級','累積經驗'],
     '經驗獎勵': ['id','經驗'],
@@ -77,6 +79,8 @@ def compile_tables(tables):
     d['progression'] = {'growth':{},'thresholds':[], 'rewards':{}}
     d['dialogue_events'] = []
     d['dialogues'] = {}
+    d['dialogue_sections'] = {}
+    d['chapter_rules'] = {}
     levels = {}
     skills = {}
     loc = {}
@@ -97,11 +101,21 @@ def compile_tables(tables):
                 loc[sheet,id] = row
             if '名稱' in v and (not isinstance(v['名稱'],str) or not v['名稱'].strip()): fail(sheet,row,'名稱不可空白')
             n = lambda key,lo=0,hi=999: number(v[key],sheet,row,lo,hi)
-            if sheet=='劇情事件':
-                if v['觸發'] not in ('START','TURN','AREA','VICTORY','DEFEAT'): fail(sheet,row,'觸發必須是 START、TURN、AREA、VICTORY、DEFEAT')
-                d['dialogue_events'].append(dict(id=id,level_id=identity(v['關卡ID'],sheet,row),trigger=v['觸發'],turn=n('回合',1,999),actor=v['角色ID'],q=n('q',-24,24),r=n('r',-24,24),radius=n('半徑',0,24),script_id=identity(v['劇本ID'],sheet,row)))
+            if sheet=='劇情區段':
+                if not isinstance(v['說明'],str): fail(sheet,row,'說明須為文字')
+                d['dialogue_sections'][id]={'name':v['名稱'],'description':v['說明']}
+            elif sheet=='關卡流程':
+                mid=identity(v['地圖ID'],sheet,row)
+                map_path=Path(__file__).resolve().parents[1]/'data/maps'/f'{mid}.json'
+                if not map_path.is_file(): fail(sheet,row,'找不到流程地圖')
+                map_data=json.loads(map_path.read_text(encoding='utf8'))
+                if v['寶箱座標'] not in map_data.get('chests',{}): fail(sheet,row,'指定寶箱不在地圖內')
+                d['chapter_rules'][id]={'name':v['名稱'],'map_id':mid,'chest':v['寶箱座標'],'treasure':v['寶物ID'],'deploy_limit':n('出戰上限',1,5)}
+            elif sheet=='劇情事件':
+                if v['觸發'] not in ('INTRO','START','TURN','AREA','CHEST','VICTORY','DEFEAT','OUTRO'): fail(sheet,row,'觸發必須是 INTRO、START、TURN、AREA、CHEST、VICTORY、DEFEAT、OUTRO')
+                d['dialogue_events'].append(dict(id=id,level_id=identity(v['關卡ID'],sheet,row),trigger=v['觸發'],turn=n('回合',1,999),actor=v['角色ID'],q=n('q',-24,24),r=n('r',-24,24),radius=n('半徑',0,24),script_id=identity(v['區段ID'],sheet,row)))
             elif sheet=='劇情台詞':
-                sid=identity(v['劇本ID'],sheet,row)
+                sid=identity(v['區段ID'],sheet,row)
                 if v['位置'] not in ('LEFT','RIGHT'): fail(sheet,row,'位置必須是 LEFT 或 RIGHT')
                 if not isinstance(v['台詞'],str) or not 1<=len(v['台詞'])<=160: fail(sheet,row,'每句台詞須為 1–160 字，長文請拆句')
                 if not isinstance(v['說話者'],str) or len(v['說話者'])>24: fail(sheet,row,'說話者至多 24 字；空白為旁白')
@@ -180,12 +194,23 @@ def compile_tables(tables):
     d['progression']['thresholds']=[levels[i] for i in range(1,21)]
     if len(d['dialogue_events'])>128: raise TableError('劇情事件上限為 128')
     for sid,lines in d['dialogues'].items():
+        if sid not in d['dialogue_sections']: raise TableError('台詞引用未知區段：'+sid)
         if len(lines)>128 or len({line['order'] for line in lines})!=len(lines): raise TableError('每段劇本上限 128 句且順序不可重複：'+sid)
         lines.sort(key=lambda line:line['order'])
     for event in d['dialogue_events']:
         ref(event['script_id'],d['dialogues'],'劇情事件',loc['劇情事件',event['id']])
         if event['actor']: ref(event['actor'],roster,'劇情事件',loc['劇情事件',event['id']])
         if abs(event['q']+event['r'])>24: raise TableError('劇情區域超出半徑 24')
+    for sid in d['dialogue_sections']:
+        if not d['dialogues'].get(sid): raise TableError('劇情區段沒有台詞：'+sid)
+    for cid,chapter in d['chapter_rules'].items():
+        if chapter['treasure'] not in d['equipment']: raise TableError('任務寶物必須為非消耗裝備')
+        map_data=json.loads((Path(__file__).resolve().parents[1]/'data/maps'/f"{chapter['map_id']}.json").read_text(encoding='utf8'))
+        chest=d['chest_tables'].get(map_data['chests'][chapter['chest']],{})
+        if not any(r['item']==chapter['treasure'] and r['chance']==1 and r['min']>=1 for r in d['loot_tables'].get(chest.get('loot_table'),[])): raise TableError('任務寶箱必須必定掉落寶物')
+        events=[event for event in d['dialogue_events'] if event['level_id']==cid]
+        if not {'INTRO','CHEST','DEFEAT','OUTRO'}<={event['trigger'] for event in events}: raise TableError('關卡流程缺少開場、開箱、失敗或結尾事件')
+        if not any(event['trigger']=='CHEST' and f"{event['q']},{event['r']},{-event['q']-event['r']}"==chapter['chest'] for event in events): raise TableError('開箱事件必須對應任務寶箱')
     return d
 
 def export(source,destination,check_only=False):

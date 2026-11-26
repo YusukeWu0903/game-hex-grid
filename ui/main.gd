@@ -42,6 +42,9 @@ var audio
 var cinematic
 var story_overlay
 const Story = preload("res://core/story_dialogue.gd")
+const Chapter = preload("res://ui/chapter_flow.gd")
+var story_continuation: Callable
+var intro_story: Dictionary = {"seen":[],"log":[]}
 var combat_cinematics = true
 var radial_actions
 var sidebar: VBoxContainer
@@ -92,10 +95,7 @@ func _ready() -> void:
 	build_shell()
 	story_overlay = preload("res://ui/story_dialogue.gd").new()
 	add_child(story_overlay)
-	story_overlay.finished.connect(func():
-		busy = false
-		after_action()
-	)
+	story_overlay.finished.connect(story_finished)
 	level = store.levels[0].duplicate(true)
 	show_menu()
 	if not store.last_error.is_empty():
@@ -373,6 +373,7 @@ func confirm(text: String, callback: Callable) -> void:
 
 func invalidate_animation() -> void:
 	generation += 1
+	story_continuation = Callable()
 	if is_instance_valid(story_overlay): story_overlay.abort()
 	if cinematic != null:
 		cinematic.abort()
@@ -427,7 +428,9 @@ func show_menu() -> void:
 	label(map.get("name","未知地圖"),18)
 	label(Mission.description(level))
 	label("可出戰 %d 人 · 敵方 %d 人" % [level.playerIds.size(),level.enemyIds.size()])
-	button("開始部署",func(): MissionUI.open(self,level))
+	button("進入關卡" if Chapter.enabled(level) else "開始部署",func(): Chapter.enter(self,level),not party.pending_ending.is_empty())
+	if not party.pending_ending.is_empty(): button("接續已結算的結尾劇情",func(): Chapter.ending(self))
+	elif not Chapter.entry(self).is_empty(): button("繼續戰前劇情／佈陣",func(): Chapter.resume_entry(self))
 	button("繼續戰鬥",load_battle,not FileAccess.file_exists(battle_save_path()))
 	if FileAccess.file_exists(battle_save_path()+".bak"):
 		button("讀取上一份備份",func(): load_battle(true))
@@ -459,6 +462,7 @@ func begin_deployment(config: Dictionary, map_override: Dictionary = {}, selecte
 	battle.inventory = party.inventory.duplicate(true)
 	battle.loadouts = party.loadouts.duplicate(true)
 	battle.progression = party.progression.duplicate(true)
+	if Chapter.enabled(config) and Story.valid(intro_story,str(config.get("levelId",""))): battle.story = intro_story.duplicate(true)
 	level = config.duplicate(true)
 	board.reset_camera()
 	mode = "DEPLOYMENT"
@@ -473,6 +477,7 @@ func begin_deployment(config: Dictionary, map_override: Dictionary = {}, selecte
 	notice("選擇左側角色，再點我方出生格；右鍵可收回已部署角色。")
 
 func refresh_deployment() -> void:
+	Chapter.checkpoint(self,"DEPLOY")
 	clear_sidebar()
 	label("戰前部署",22)
 	label(level.name,18)
@@ -509,6 +514,9 @@ func start_battle() -> void:
 		return
 	mode = "BATTLE"
 	selection = ""
+	if Chapter.enabled(level):
+		Chapter.checkpoint(self,"BATTLE")
+		save_battle()
 	if battle.phase=="RESULT":
 		after_action()
 		return
@@ -527,6 +535,7 @@ func battle_ui() -> void:
 	label("第 %d 回合" % battle.turn,23)
 	label("我方回合" if battle.phase == "PLAYER" else "敵方行動中",18)
 	label(Mission.description(level),14)
+	if level.get("winCondition")=="CHEST_AND_ALL": label(Chapter.progress_text(battle),16)
 	RPGUI.add_rewind(self)
 	var selected = battle.get_unit(inspected_id) if not inspected_id.is_empty() else selected_unit()
 	if selected.is_empty():
@@ -925,13 +934,18 @@ func show_result_controls() -> void:
 	label(battle.result_reason if not battle.result_reason.is_empty() else ("目標已完成。" if victory else "我方全軍覆沒。"))
 	RPGUI.result_controls(self)
 	label("下次出戰將恢復全部 HP／MP。",14)
-	button("重新部署",func(): begin_deployment(level,battle.map.duplicate(true)))
-	button("返回選單",show_menu)
+	if Chapter.enabled(level): Chapter.result_buttons(self)
+	else:
+		button("重新部署",func(): begin_deployment(level,battle.map.duplicate(true)))
+		button("返回選單",show_menu)
 	sync_board()
 	state_label.text = "戰鬥結束"
 	context_label.text = level.name
 	detail_label.text = "本場戰鬥已結束；重新部署可開始新的一場。"
 	notice("戰鬥結束。可重新部署或返回選單。")
+	if Chapter.enabled(level):
+		detail_label.text = "確認結算後觀看結尾，並返回關卡選單。" if victory else "選擇退出關卡、回合回溯或重新再戰。"
+		notice(detail_label.text)
 
 func open_level_editor(config: Dictionary) -> void:
 	invalidate_animation()
@@ -1310,6 +1324,9 @@ func save_battle() -> void:
 func load_battle(from_backup: bool = false) -> void:
 	if busy or mode != "MENU":
 		return
+	if not party.pending_ending.is_empty():
+		Chapter.ending(self)
+		return
 	var loaded = Saves.read(battle_save_path()+(".bak" if from_backup else ""))
 	if not loaded.ok:
 		notice(loaded.message)
@@ -1375,3 +1392,10 @@ func play_story() -> bool:
 	battle_ui()
 	story_overlay.play(queue,battle.story)
 	return true
+
+func story_finished() -> void:
+	busy = false
+	var next = story_continuation
+	story_continuation = Callable()
+	if next.is_valid(): next.call()
+	else: after_action()

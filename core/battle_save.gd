@@ -128,7 +128,7 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 	if value.version==VERSION:
 		var rpg_error = validate_rpg(rpg,value)
 		if not rpg_error.is_empty(): return invalid(rpg_error)
-	if not Mission.evaluate(level,normalized,int(value.turn),rpg.get("defeated_ids",{})).result.is_empty():
+	if not Mission.evaluate(level,normalized,int(value.turn),rpg.get("defeated_ids",{}),false,rpg.get("opened_chests",{}),rpg.get("pending_loot",{})).result.is_empty():
 		return invalid("此存檔的關卡目標已結束。")
 	return {"ok":true,"message":"","rpg":rpg.duplicate(true),"units":normalized,"map":value.map.duplicate(true),
 		"level":level.duplicate(true),"allowed_ids":value.allowed_ids.duplicate(),"turn":int(value.turn),"saved_at":value.saved_at}

@@ -9,7 +9,14 @@ spec=importlib.util.spec_from_file_location("tables",ROOT/"tools/export_tables.p
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class Tables(unittest.TestCase):
  def test_dialogue_validation(self):
-  self.assertEqual(len(m.compile_tables(self.rows)['dialogue_events']),5)
+  self.assertEqual(len([e for e in m.compile_tables(self.rows)['dialogue_events'] if e['level_id']=='mission_story']),5)
+ def test_chapter_sections(self):
+  result=m.compile_tables(self.rows)
+  self.assertIn('common_defeat',result['dialogue_sections'])
+  self.assertEqual(result['chapter_rules']['chapter_treasure']['treasure'],'border_relic')
+  for sheet,col,value in [('劇情區段',0,'missing'),('劇情事件',8,'missing'),('關卡流程',3,'1,1,-2'),('關卡流程',4,'healing_potion')]:
+   data=copy.deepcopy(self.rows);data[sheet][0][1][col]=value
+   with self.assertRaises(m.TableError):m.compile_tables(data)
   for sheet,row,col,value in [('劇情事件',0,2,'INVALID'),('劇情事件',0,8,'missing'),('劇情事件',0,4,'missing'),('劇情台詞',0,4,'../secret'),('劇情台詞',0,6,'字'*161),('劇情台詞',0,5,'CENTER')]:
    data=copy.deepcopy(self.rows);data[sheet][row][1][col]=value
    with self.assertRaises(m.TableError):m.compile_tables(data)

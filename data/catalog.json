@@ -348,6 +348,22 @@
       "resistance": 0,
       "hp": 0,
       "mp": 5
+    },
+    "border_relic": {
+      "name": "邊境徽章",
+      "slot": "accessory",
+      "jobs": [
+        "swordsman",
+        "archer",
+        "mage",
+        "knight"
+      ],
+      "attack": 0,
+      "magic": 0,
+      "defense": 0,
+      "resistance": 0,
+      "hp": 0,
+      "mp": 0
     }
   },
   "items": {
@@ -418,12 +434,24 @@
         "min": 1,
         "max": 1
       }
+    ],
+    "quest_relic": [
+      {
+        "item": "border_relic",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1
+      }
     ]
   },
   "chest_tables": {
     "wooden": {
       "name": "木製寶箱",
       "loot_table": "chest"
+    },
+    "central_relic": {
+      "name": "中央任務寶箱",
+      "loot_table": "quest_relic"
     }
   },
   "starter_inventory": {
@@ -579,6 +607,50 @@
       "r": 0,
       "radius": 0,
       "script_id": "border_loss"
+    },
+    {
+      "id": "chapter_enter",
+      "level_id": "chapter_treasure",
+      "trigger": "INTRO",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "chapter_intro"
+    },
+    {
+      "id": "chapter_open",
+      "level_id": "chapter_treasure",
+      "trigger": "CHEST",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "chapter_chest"
+    },
+    {
+      "id": "chapter_end",
+      "level_id": "chapter_treasure",
+      "trigger": "OUTRO",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "chapter_outro"
+    },
+    {
+      "id": "chapter_fail",
+      "level_id": "chapter_treasure",
+      "trigger": "DEFEAT",
+      "turn": 1,
+      "actor": "",
+      "q": 0,
+      "r": 0,
+      "radius": 0,
+      "script_id": "common_defeat"
     }
   ],
   "dialogues": {
@@ -655,6 +727,141 @@
         "side": "LEFT",
         "text": "隊伍失去了繼續戰鬥的能力。可以回溯回合，重新安排進攻。"
       }
+    ],
+    "chapter_intro": [
+      {
+        "id": "chapter_i01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "中央的寶箱仍留在戰場上，敵軍已經封住前路。"
+      },
+      {
+        "id": "chapter_i02",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "我們要取回寶箱裡的寶物，也要清除所有敵軍，才能安全撤離。"
+      },
+      {
+        "id": "chapter_i03",
+        "order": 3,
+        "speaker": "琳恩",
+        "portrait": "player_archer_01",
+        "side": "LEFT",
+        "text": "先決定出戰人員與陣形。我會留意敵方弓箭手。"
+      }
+    ],
+    "chapter_chest": [
+      {
+        "id": "chapter_c01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "箱蓋緩緩打開。隊伍取得了「邊境徽章」。"
+      },
+      {
+        "id": "chapter_c02",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "寶物已經找到了。確認戰場安全後，再一起帶回去。"
+      }
+    ],
+    "chapter_outro": [
+      {
+        "id": "chapter_o01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "戰利品與作戰經驗已完成清點，隊伍準備離開。"
+      },
+      {
+        "id": "chapter_o02",
+        "order": 2,
+        "speaker": "艾爾",
+        "portrait": "player_swordsman_01",
+        "side": "LEFT",
+        "text": "任務完成。大家辛苦了，回去休息吧。"
+      },
+      {
+        "id": "chapter_o03",
+        "order": 3,
+        "speaker": "琳恩",
+        "portrait": "player_archer_01",
+        "side": "LEFT",
+        "text": "全員準備撤離。下一次，也要一起回來。"
+      }
+    ],
+    "common_defeat": [
+      {
+        "id": "common_d01",
+        "order": 1,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "這次作戰未能完成。隊伍已無法按照原計畫繼續前進。"
+      },
+      {
+        "id": "common_d02",
+        "order": 2,
+        "speaker": "",
+        "portrait": "",
+        "side": "LEFT",
+        "text": "可以退出關卡、回溯至先前回合，或重新整備再戰。"
+      }
     ]
+  },
+  "dialogue_sections": {
+    "border_start": {
+      "name": "舊演示：開戰",
+      "description": "保留原演示關卡與舊台詞 ID"
+    },
+    "border_turn": {
+      "name": "舊演示：第二回合",
+      "description": "回合提醒"
+    },
+    "border_area": {
+      "name": "舊演示：抵達中央",
+      "description": "區域提醒"
+    },
+    "border_win": {
+      "name": "舊演示：勝利",
+      "description": "結算前對話"
+    },
+    "border_loss": {
+      "name": "舊演示：失敗",
+      "description": "保留舊演示失敗段落"
+    },
+    "chapter_intro": {
+      "name": "邊境尋寶：開場",
+      "description": "進入關卡後、選兵部署前"
+    },
+    "chapter_chest": {
+      "name": "邊境尋寶：開啟中央寶箱",
+      "description": "取得寶物後；結算前仍可回溯"
+    },
+    "chapter_outro": {
+      "name": "邊境尋寶：結尾",
+      "description": "確認結算後播放，完成即退出關卡"
+    },
+    "common_defeat": {
+      "name": "通用：戰鬥失敗",
+      "description": "可由不同關卡事件共用，播放後顯示失敗選單"
+    }
+  },
+  "chapter_rules": {
+    "chapter_treasure": {
+      "name": "邊境尋寶：中央的寶物",
+      "map_id": "map_chapter",
+      "chest": "0,0,0",
+      "treasure": "border_relic",
+      "deploy_limit": 5
+    }
   }
 }

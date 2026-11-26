@@ -51,6 +51,7 @@ static func render(app) -> void:
 	app.context_label.text = app.squad_config.name
 	app.detail_label.text = "勾選本場出戰角色；必出／保護角色不可取消。裝備請先在主選單整備。"
 	app.notice("確認名單後，再安排出生位置。")
+	app.Chapter.checkpoint(app,"SQUAD")
 static func goal_cells(level: Dictionary, map: Dictionary) -> Dictionary:
 	var result = {}
 	if level.get("winCondition")!="REACH" or not level.get("goalCell") is Array or level.goalCell.size()!=3 or map.is_empty(): return result
@@ -88,7 +89,7 @@ static func editor(app) -> void:
 			app.sidebar.add_child(check)
 	app.label("勝利條件",18)
 	var picker = OptionButton.new()
-	var captions = ["敵方全滅","擊敗指定敵人","存活指定回合","抵達指定區域"]
+	var captions = ["敵方全滅","擊敗指定敵人","存活指定回合","抵達指定區域","指定寶箱與敵方全滅"]
 	for caption in captions: picker.add_item(caption)
 	picker.select(maxi(0,Mission.TYPES.find(level.get("winCondition","ANNIHILATION"))))
 	picker.item_selected.connect(func(index):
@@ -101,6 +102,14 @@ static func editor(app) -> void:
 		app.render_level_editor())
 	app.sidebar.add_child(picker)
 	match level.get("winCondition"):
+		"CHEST_AND_ALL":
+			app.label("寶箱座標（x,y,z）與必得寶物 ID",14)
+			for field in ["requiredChest","requiredTreasure"]:
+				var input = LineEdit.new()
+				input.text = str(level.get(field,""))
+				input.placeholder_text = "0,0,0" if field=="requiredChest" else "border_relic"
+				input.text_changed.connect(func(value): app.editing_level[field] = value)
+				app.sidebar.add_child(input)
 		"TARGET":
 			var targets = OptionButton.new()
 			targets.add_item("請指定目標")

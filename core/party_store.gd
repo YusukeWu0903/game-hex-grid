@@ -8,6 +8,7 @@ var inventory: Dictionary = {}
 var loadouts: Dictionary = {}
 var settled_ids: Dictionary = {}
 var error = ""
+var pending_ending: Dictionary = {}
 func _init(file_path: String) -> void:
 	path = file_path
 	inventory = Catalog.data().starter_inventory.duplicate(true)
@@ -25,6 +26,11 @@ func _init(file_path: String) -> void:
 		for id in inventory: inventory[id] = int(inventory[id])
 		loadouts = parsed.loadouts
 		settled_ids = parsed.settled_ids
+		var ending = parsed.get("pending_ending",{})
+		if not ending is Dictionary or (not ending.is_empty() and (not settled_ids.has(ending.get("battle_id","")) or not Catalog.data().get("chapter_rules",{}).has(ending.get("level_id","")))):
+			error = "結尾劇情進度無效；暫停寫入。"
+			return
+		pending_ending = ending
 
 static func valid_bag(value: Variant) -> bool:
 	if not value is Dictionary: return false
@@ -65,6 +71,7 @@ func claim(session: RefCounted) -> String:
 	if settled_ids.has(session.battle_id):
 		session.settled = true
 		return ""
+	if not pending_ending.is_empty(): return "請先完成上一場已結算的結尾劇情。"
 	if not valid_bag(session.inventory) or not valid_loadouts(loadouts,session.inventory): return "戰鬥背包資料無效。"
 	var next = settled_ids.duplicate()
 	next[session.battle_id] = true
@@ -76,14 +83,24 @@ func claim(session: RefCounted) -> String:
 		var after = mini(Progression.threshold(20),before+int(session.pending_exp[id]))
 		next_progress[id] = after
 		results[id] = {"before":before,"after":after,"gained":after-before}
-	var failure = save_payload(session.inventory,loadouts,next,next_progress)
+	var ending = pending_ending.duplicate(true)
+	if Catalog.data().get("chapter_rules",{}).has(session.mission.get("levelId","")):
+		ending = {"battle_id":session.battle_id,"level_id":session.mission.levelId}
+	var failure = save_payload(session.inventory,loadouts,next,next_progress,ending)
 	if failure.is_empty():
 		inventory = session.inventory.duplicate(true)
 		settled_ids = next
 		progression = next_progress
 		session.experience_results = results
 		session.settled = true
+		pending_ending = ending
 	return failure
 
-func save_payload(bag: Dictionary, gear: Dictionary, ids: Dictionary, experience: Variant = null) -> String:
-	return Saves.write_json(path,{"version":1,"inventory":bag,"loadouts":gear,"settled_ids":ids,"progression":progression if experience==null else experience})
+func save_payload(bag: Dictionary, gear: Dictionary, ids: Dictionary, experience: Variant = null, ending: Variant = null) -> String:
+	return Saves.write_json(path,{"version":1,"inventory":bag,"loadouts":gear,"settled_ids":ids,"progression":progression if experience==null else experience,"pending_ending":pending_ending if ending==null else ending})
+
+func finish_ending() -> String:
+	if not error.is_empty(): return error
+	var failure = save_payload(inventory,loadouts,settled_ids,null,{})
+	if failure.is_empty(): pending_ending = {}
+	return failure

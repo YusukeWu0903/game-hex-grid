@@ -382,7 +382,7 @@ func import_rpg(value: Dictionary) -> void:
 	if history.is_empty(): capture_round()
 
 func check_mission(round_end: bool = false) -> bool:
-	var verdict = Mission.evaluate(mission,units,turn,defeated_ids,round_end)
+	var verdict = Mission.evaluate(mission,units,turn,defeated_ids,round_end,opened_chests,pending_loot)
 	result = verdict.result
 	result_reason = verdict.reason
 	if not result.is_empty():

@@ -58,6 +58,20 @@ func load_library() -> void:
 	story_level.levelId = "mission_story"
 	story_level.name = "劇情演示：邊境集結"
 	levels.append(story_level)
+	for id in Catalog.data().get("chapter_rules",{}):
+		var rule = Catalog.data().chapter_rules[id]
+		if map_by_id(rule.map_id).is_empty(): maps.append(JSON.parse_string(FileAccess.get_file_as_string("res://data/maps/"+rule.map_id+".json")))
+		var chapter = expedition.duplicate(true)
+		chapter.levelId = id
+		chapter.name = rule.name
+		chapter.mapId = rule.map_id
+		chapter.playerIds = Catalog.roster_ids()
+		chapter.deployLimit = int(rule.deploy_limit)
+		chapter.requiredIds = ["player_swordsman_01"]
+		chapter.winCondition = "CHEST_AND_ALL"
+		chapter.requiredChest = rule.chest
+		chapter.requiredTreasure = rule.treasure
+		levels.append(chapter)
 	if not FileAccess.file_exists(storage_path):
 		return
 	var value = JSON.parse_string(FileAccess.get_file_as_string(storage_path))

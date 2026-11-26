@@ -79,7 +79,7 @@ func run() -> void:
 	var win_picker
 	for child in app.sidebar.get_children():
 		if child is LineEdit and child.text=="0,0,0": goal_input = child
-		if child is OptionButton and child.item_count==4 and child.get_item_text(0)=="敵方全滅": win_picker = child
+		if child is OptionButton and child.item_count==preload("res://core/mission_rules.gd").TYPES.size() and child.get_item_text(0)=="敵方全滅": win_picker = child
 	check(goal_input!=null and win_picker!=null,"objective editor controls available")
 	goal_input.text="0,1,-1"
 	goal_input.text_changed.emit(goal_input.text)
