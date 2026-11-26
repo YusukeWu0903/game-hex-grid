@@ -6,7 +6,7 @@
 
 在 Windows 雙擊 Start_Game.cmd。啟動器使用上一層的 Godot_v4.6.3-stable_win64.exe；其他安裝位置可先設定 GODOT_BIN。也可用 Godot 4.6.3 開啟 project.godot，按 F6 執行 scenes/main.tscn，或 F5 執行整個專案。
 
-這是可在 Godot 中直接執行的專案，尚未製作獨立遊戲執行檔或 Web 發佈包。
+可在 Godot 中直接執行，另提供單執行緒 Web 匯出設定與 Export_Web.ps1。發布與瀏覽器限制見 [WEB_RELEASE.md](docs/WEB_RELEASE.md)。
 
 ## 操作
 

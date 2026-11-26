@@ -41,6 +41,7 @@ var board
 var audio
 var cinematic
 var story_overlay
+var web_import_callback
 const Story = preload("res://core/story_dialogue.gd")
 const Chapter = preload("res://ui/chapter_flow.gd")
 var story_continuation: Callable
@@ -109,6 +110,11 @@ func build_theme() -> void:
 	var font = SystemFont.new()
 	font.font_names = PackedStringArray(["Microsoft JhengHei","Noto Sans CJK TC","Arial"])
 	t.default_font = font
+	if OS.has_feature("web"):
+		var web_font = FontVariation.new()
+		web_font.base_font = preload("res://assets/fonts/NotoSansTC.ttf")
+		web_font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"):400.0}
+		t.default_font = web_font
 	t.default_font_size = 16
 	for state in ["normal","hover","pressed","focus","disabled"]:
 		var style = StyleBoxFlat.new()
@@ -142,8 +148,8 @@ func build_theme() -> void:
 	window_border.expand_margin_top = 28
 	t.set_stylebox("embedded_border","Window",window_border)
 	t.set_color("title_color","Window",Color("#e4d4b7"))
-	t.set_font("normal_font","RichTextLabel",font)
-	t.set_font("bold_font","RichTextLabel",font)
+	t.set_font("normal_font","RichTextLabel",t.default_font)
+	t.set_font("bold_font","RichTextLabel",t.default_font)
 	t.set_font_size("normal_font_size","RichTextLabel",18)
 	t.set_font_size("bold_font_size","RichTextLabel",19)
 	t.set_color("default_color","RichTextLabel",Color("#d9e3ec"))
@@ -1173,10 +1179,22 @@ func render_map_editor() -> void:
 	button("鏡頭回到中央",board.reset_camera)
 	button("儲存地圖",save_map)
 	button("匯出 JSON",func():
+		if OS.has_feature("web"):
+			var report = MapGenerator.diagnose(editing_map)
+			if not report.errors.is_empty():
+				validate_editor_map()
+				return
+			JavaScriptBridge.download_buffer(JSON.stringify(editing_map,"\t").to_utf8_buffer(),str(editing_map.mapId)+".json","application/json")
+			return
 		file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 		file_dialog.current_file = str(editing_map.mapId)+".json"
 		file_dialog.popup_centered_ratio(0.7))
 	button("匯入 JSON",func():
+		if OS.has_feature("web"):
+			web_import_callback = JavaScriptBridge.create_callback(web_map_received)
+			JavaScriptBridge.get_interface("window").hexMapImport = web_import_callback
+			JavaScriptBridge.eval("var pick=document.createElement('input');pick.type='file';pick.accept='.json,application/json';pick.onchange=async()=>{const f=pick.files[0];if(f)window.hexMapImport(f.size>1048576?'':await f.text());};pick.click();")
+			return
 		file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		file_dialog.popup_centered_ratio(0.7))
 	button("新增空白地圖",func():
@@ -1251,6 +1269,21 @@ func on_file_selected(path: String) -> void:
 			return
 		var error = store.export_map(path,editing_map)
 		notice("地圖已匯出。" if error.is_empty() else error)
+
+func web_map_received(args: Array) -> void:
+	if mode != "MAP_EDITOR" or args.is_empty(): return
+	var text = str(args[0])
+	if text.is_empty() or text.to_utf8_buffer().size()>1048576:
+		notice("地圖檔案為空或超過 1 MB。")
+		return
+	var value = JSON.parse_string(text)
+	var errors = Hex.validate_map(value)
+	if value is Dictionary: errors.append_array(Catalog.validate_chest_tables(value))
+	if not errors.is_empty():
+		notice("\n".join(errors))
+		return
+	open_map_editor(value)
+	notice("已載入地圖；按「儲存地圖」後才會寫入資料庫。")
 
 func focus_inspected() -> void:
 	var unit = battle.get_unit(inspected_id if not inspected_id.is_empty() else selection)
