@@ -4,6 +4,7 @@ const Hex = preload("res://core/hex_rules.gd")
 const Rules = preload("res://core/battle_rules.gd")
 const Mission = preload("res://core/mission_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
+const Progression = preload("res://core/progression.gd")
 
 var map: Dictionary = {}
 var units: Array = []
@@ -23,6 +24,9 @@ var history: Array = []
 var rng = RandomNumberGenerator.new()
 var battle_id = ""
 var settled = false
+var progression: Dictionary = {}
+var pending_exp: Dictionary = {}
+var experience_results: Dictionary = {}
 
 func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array, config: Dictionary = {}) -> Array[String]:
 	var errors = Hex.validate_map(new_map)
@@ -72,9 +76,14 @@ func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array, config: D
 	rng.randomize()
 	battle_id = Crypto.new().generate_random_bytes(16).hex_encode()
 	settled = false
+	progression = {}
+	pending_exp = {}
+	experience_results = {}
 	revision += 1
 	for i in range(enemy_ids.size()):
-		units.append(Catalog.enemy(enemy_ids[i],i,Hex.cell(enemy_spawns[i])))
+		var enemy = Catalog.enemy(enemy_ids[i],i,Hex.cell(enemy_spawns[i]))
+		Progression.apply(enemy,int(config.get("enemyLevels",[])[i]) if config.has("enemyLevels") else 1)
+		units.append(enemy)
 	return errors
 
 func get_unit(id: String) -> Dictionary:
@@ -93,6 +102,7 @@ func deploy(id: String, at: Vector3i) -> bool:
 		return false
 	units = units.filter(func(u): return u.id != id and (u.faction != "PLAYER" or u.cell != at))
 	var unit = Catalog.player(id,at)
+	Progression.apply(unit,Progression.level_for(int(progression.get(id,0))))
 	Catalog.equip_unit(unit,loadouts.get(id,{}))
 	units.append(unit)
 	return true
@@ -123,6 +133,8 @@ func start() -> Array[String]:
 	if errors.is_empty():
 		turn = 1
 		phase = "PLAYER"
+		for unit in units:
+			if unit.faction=="PLAYER": pending_exp[unit.id] = int(Catalog.data().progression.rewards.participation)
 		capture_round()
 		check_mission()
 	return errors
@@ -248,6 +260,10 @@ func resolve_attack(actor: Dictionary, target: Dictionary, action: Dictionary) -
 		var damage = Rules.damage_for(actor,other,action)
 		other.hp = maxi(0,other.hp-damage)
 		primary.hits.append({"id":other.id,"cell":other.cell,"damage":damage})
+	if actor.faction=="PLAYER":
+		for victim in victims:
+			if victim.hp<=0 and not defeated_ids.has(victim.id):
+				pending_exp[actor.id] = int(pending_exp.get(actor.id,0))+int(Catalog.data().progression.rewards.kill)
 	return primary
 
 func guard_unit(id: String) -> bool:
@@ -298,7 +314,7 @@ func roll_loot(table_id: String) -> void:
 			pending_loot[row.item] = int(pending_loot.get(row.item,0))+count
 
 func round_state() -> Dictionary:
-	return {"turn":turn,"units":units.duplicate(true),"inventory":inventory.duplicate(true),"pending_loot":pending_loot.duplicate(true),"opened_chests":opened_chests.duplicate(true),"defeated_ids":defeated_ids.duplicate(true),"rng_state":str(rng.state)}
+	return {"turn":turn,"units":units.duplicate(true),"inventory":inventory.duplicate(true),"pending_loot":pending_loot.duplicate(true),"pending_exp":pending_exp.duplicate(true),"opened_chests":opened_chests.duplicate(true),"defeated_ids":defeated_ids.duplicate(true),"rng_state":str(rng.state)}
 
 func capture_round() -> void:
 	history.append(round_state())
@@ -311,6 +327,8 @@ func rewind_to(round_number: int) -> bool:
 		units = state.units
 		inventory = state.inventory
 		pending_loot = state.pending_loot
+		pending_exp = state.get("pending_exp",{}).duplicate(true)
+		experience_results = {}
 		opened_chests = state.opened_chests
 		defeated_ids = state.defeated_ids
 		rng.state = int(state.rng_state)
@@ -331,9 +349,13 @@ func export_rpg() -> Dictionary:
 		for unit in state.units: unit.cell = [unit.cell.x,unit.cell.y,unit.cell.z]
 	value.battle_id = battle_id
 	value.loadouts = loadouts.duplicate(true)
+	value.progression = progression.duplicate(true)
 	return value
 
 func import_rpg(value: Dictionary) -> void:
+	progression = Catalog.normalize_numbers(value.get("progression",{}).duplicate(true))
+	pending_exp = Catalog.normalize_numbers(value.get("pending_exp",{}).duplicate(true))
+	experience_results = {}
 	inventory = value.get("inventory",{}).duplicate(true)
 	pending_loot = value.get("pending_loot",{}).duplicate(true)
 	for bag in [inventory,pending_loot]:

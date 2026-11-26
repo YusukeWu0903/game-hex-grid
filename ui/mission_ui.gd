@@ -2,6 +2,7 @@ extends RefCounted
 const Mission = preload("res://core/mission_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
 const Hex = preload("res://core/hex_rules.gd")
+const Progression = preload("res://core/progression.gd")
 static func open(app, config: Dictionary, map_override: Dictionary = {}) -> void:
 	app.invalidate_animation()
 	app.squad_config = config.duplicate(true)
@@ -20,9 +21,10 @@ static func render(app) -> void:
 	var required = Mission.required(app.squad_config)
 	for id in app.squad_config.playerIds:
 		var unit = Catalog.player(id,Vector3i.ZERO)
+		Progression.apply(unit,Progression.level_for(int(app.party.progression.get(id,0))))
 		Catalog.equip_unit(unit,app.party.loadouts.get(id,{}))
 		var box = CheckBox.new()
-		box.text = "%s · %s%s" % [unit.name,Catalog.data().jobs[unit.job].name," · 必出" if required.has(id) else ""]
+		box.text = "%s Lv.%d · %s%s" % [unit.name,unit.level,Catalog.data().jobs[unit.job].name," · 必出" if required.has(id) else ""]
 		box.button_pressed = app.squad_ids.has(id)
 		box.disabled = required.has(id)
 		box.tooltip_text = "HP %d · MP %d · 移動 %d\n物防 %d · 魔防 %d" % [unit.max_hp,unit.max_mp,unit.movement,unit.defense,unit.resistance]

@@ -31,3 +31,9 @@ RTX 3060、Compatibility、1440×900、60 FPS 上限，最大半徑 24 地圖：
 每名敵軍規劃約 42–43 ms，同步規劃仍可能有短暫停頓。未量測長時間洩漏、功耗或其他硬體。原始資料：D:/Codex/visualizations/2026-11-25/hex-rpg-expansion/performance.json 與 performance-rpg.json。
 
 編隊／任務擴充後複測（2026-11-26）：最大地圖合成200回合歷史額外2.876MiB，捕捉P95 0.091ms、回溯1.478ms、驗證267.469ms、快照446567 bytes；每名敵人規劃約46–48ms。與前輪同樣為本機合成歷史，非長時間實玩。任務條件在行動／回合事件判定，區域標示沿用有限提示格繪製；不新增每幀尋路。這輪未重測FPS，不沿用舊數據宣稱新FPS。原始資料在 D:/Codex/visualizations/2026-11-26/hex-squad-objectives/final-verification/performance-rpg.json。
+
+等級與敵軍立繪整合後複測（2026-11-26）：1,801 格、200 回合合成歷史額外 3.075 MiB（增加約 0.20 MiB），捕捉 P95 0.097 ms、回溯 1.552 ms、序列化 41.038 ms、含歷史驗證 279.636 ms、快照 475,528 bytes；每名敵人規劃 45–47 ms。存檔驗證及同步 AI 仍可能造成短暫停頓。
+
+同機 RTX 3060、OpenGL Compatibility、1440×900 地圖編輯器取樣：閒置／一般平移／縮小平移各 180 幀，中位幀時間均約 16.67 ms（60 FPS 上限）；P95 為 16.842／16.711／16.710 ms，Godot 靜態記憶體最高 71.37 MiB，顯示記憶體約 16.37 MiB。生成半徑 24 地圖約 1.093 秒。這是地圖場景短取樣，並非全戰役／所有硬體／功耗或長時間洩漏驗證，也不含全部立繪紋理載入後的記憶體。
+
+等級只在事件／建立單位時更新；立繪紋理及 Alpha 範圍僅首次快取。證據：D:/Codex/visualizations/2026-11-26/hex-level-system/performance.json、performance-rpg.json。

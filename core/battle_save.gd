@@ -4,6 +4,7 @@ const Hex = preload("res://core/hex_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
 const Mission = preload("res://core/mission_rules.gd")
 const Session = preload("res://core/battle_session.gd")
+const Progression = preload("res://core/progression.gd")
 const VERSION = 2
 const MAX_BYTES = 33554432
 
@@ -57,6 +58,9 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 	if not value.get("units") is Array or value.units.is_empty() or value.units.size()>level.playerIds.size()+level.enemyIds.size():
 		return invalid("存檔單位數量無效。")
 	var normalized = []
+	var saved_rpg = value.get("rpg",{})
+	if not saved_rpg is Dictionary or not Progression.valid(saved_rpg.get("progression",{})): return invalid("角色經驗資料無效。")
+	var progress = saved_rpg.get("progression",{})
 	var seen_ids = {}
 	var seen_cells = {}
 	var player_count = 0
@@ -71,10 +75,12 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 		var canonical = {}
 		if unit.faction == "PLAYER" and value.allowed_ids.has(unit.id):
 			canonical = Catalog.player(unit.id,Vector3i.ZERO)
+			Progression.apply(canonical,Progression.level_for(int(progress.get(unit.id,0))))
 		elif unit.faction == "ENEMY":
 			for i in range(level.enemyIds.size()):
 				if unit.id == "enemy_%d" % i:
 					canonical = Catalog.enemy(level.enemyIds[i],i,Vector3i.ZERO)
+					Progression.apply(canonical,int(level.enemyLevels[i]) if level.has("enemyLevels") else 1)
 		if canonical.is_empty():
 			return invalid("存檔包含非出戰角色。")
 		var equipment = unit.get("equipment",{})
@@ -86,7 +92,7 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 		if not integer(unit.get("guard",0),0,100): return invalid("防守狀態無效。")
 		canonical.guard = int(unit.get("guard",0))
 		if canonical.guard!=0 and canonical.guard!=int(Catalog.action(canonical,true).get("guard",0)): return invalid("防守加成不符職業。")
-		for field in ["name","job","max_hp","max_mp","movement","attack_bonus","magic_bonus","defense","resistance"]:
+		for field in ["level","name","job","max_hp","max_mp","movement","attack_bonus","magic_bonus","defense","resistance"]:
 			if unit.get(field,canonical[field]) != canonical[field]:
 				return invalid("存檔角色資料不符目前規則："+field)
 		if not integer(unit.get("hp"),1,canonical.max_hp) or not integer(unit.get("mp"),0,canonical.max_mp):
@@ -192,6 +198,10 @@ static func restore(session: RefCounted, loaded: Dictionary) -> void:
 
 static func validate_rpg(rpg: Variant, payload: Dictionary) -> String:
 	if not rpg is Dictionary: return "缺少戰鬥擴充資料。"
+	if not Progression.valid(rpg.get("progression",{})): return "角色經驗資料無效。"
+	if not rpg.get("pending_exp",{}) is Dictionary: return "暫存經驗格式無效。"
+	for id in rpg.get("pending_exp",{}):
+		if not payload.allowed_ids.has(id) or not integer(rpg.pending_exp[id],0,999999): return "暫存經驗資料無效。"
 	for field in ["inventory","pending_loot","opened_chests","defeated_ids","loadouts"]:
 		if not rpg.get(field) is Dictionary: return "擴充欄位無效："+field
 	for field in ["inventory","pending_loot"]:
@@ -229,6 +239,7 @@ static func validate_rpg(rpg: Variant, payload: Dictionary) -> String:
 		candidate.rpg = state.duplicate(true)
 		candidate.rpg.battle_id = rpg.battle_id
 		candidate.rpg.loadouts = rpg.loadouts
+		candidate.rpg.progression = rpg.get("progression",{})
 		candidate.rpg.history = []
 		var checked = validate(candidate,true)
 		if not checked.ok: return "回溯紀錄："+checked.message

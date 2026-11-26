@@ -1,8 +1,11 @@
 extends RefCounted
 const Catalog = preload("res://core/catalog.gd")
 const Hex = preload("res://core/hex_rules.gd")
+const Progression = preload("res://core/progression.gd")
 static func battle_controls(app) -> void:
 	var unit = app.selected_unit()
+	if not unit.is_empty():
+		app.label("Lv.%d%s" % [int(unit.get("level",1))," · 本場暫存 EXP +%d" % int(app.battle.pending_exp.get(unit.id,0)) if unit.faction=="PLAYER" else ""],14)
 	if not unit.is_empty(): app.label("物防 %d · 魔防 %d · 盾牆 +%d" % [unit.defense,unit.resistance,unit.guard],14)
 	if app.action_mode=="ITEM" and not app.selection.is_empty():
 		app.label("選道具，再點自己或相鄰友軍",14)
@@ -34,6 +37,14 @@ static func sync_targets(app) -> void:
 			if unit.faction=="PLAYER" and Hex.distance(actor.cell,unit.cell)<=1: app.board.target_cells[Hex.key(unit.cell)]=true
 
 static func result_controls(app) -> void:
+	app.label("角色經驗（勝利後保存）",18)
+	for id in app.battle.pending_exp:
+		var outcome = app.battle.experience_results.get(id,{})
+		var detail = "暫存 +%d" % int(app.battle.pending_exp[id])
+		if not outcome.is_empty():
+			detail = "+%d EXP · Lv.%d → %d" % [outcome.gained,Progression.level_for(int(outcome.before)),Progression.level_for(int(outcome.after))]
+		elif app.battle.result!="VICTORY": detail += "（未獲取）"
+		app.label(Catalog.player(id,Vector3i.ZERO).name+" · "+detail,14)
 	app.label("戰利品已正式入庫。" if app.battle.settled else "戰利品尚未入庫；敗北可回溯。",14)
 	for id in app.battle.pending_loot:
 		if int(app.battle.pending_loot[id])>0: app.label("%s ×%d" % [Catalog.item_name(id),app.battle.pending_loot[id]],14)
@@ -54,8 +65,11 @@ static func show_party(app) -> void:
 			app.party_selected = row.id
 			show_party(app))
 	var unit = Catalog.player(app.party_selected,Vector3i.ZERO)
+	var xp = int(app.party.progression.get(app.party_selected,0))
+	Progression.apply(unit,Progression.level_for(xp))
 	Catalog.equip_unit(unit,app.party.loadouts.get(app.party_selected,{}))
 	app.label(unit.name,20)
+	app.label(Progression.describe(xp),16)
 	app.label("HP %d · MP %d\n攻擊 +%d · 魔攻 +%d\n物防 %d · 魔防 %d" % [unit.max_hp,unit.max_mp,unit.attack_bonus,unit.magic_bonus,unit.defense,unit.resistance])
 	for slot in ["weapon","armor","accessory"]:
 		app.label({"weapon":"武器","armor":"防具","accessory":"飾品"}[slot])

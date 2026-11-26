@@ -14,4 +14,12 @@ player_swordsman_01=艾爾、player_swordsman_02=羅伊、player_archer_01=琳�
 
 來源、完整提示、SHA256 與遊戲截圖位於 D:/Codex/visualizations/2026-11-25/hex-portrait-integration/。原候選仍在 hex-mage-knight-candidates。清理圖原件在 D:/Codex/generated_images/01a20b88-19f0-72c2-a0e2-ec5d82cad97d/，檔名列於 adoption-and-prompts.json。
 
-兩張新立繪按 Alpha 可見範圍快取繪製矩形，等比例放入 420×470 設計區並對齊腳底；不改原圖像素，也不每幀掃描 Alpha。已檢視左右翻轉、攻守、突進／復位與兩種視窗。鏡像測試將主角暫設為敵方僅供驗證，正式敵方仍使用其職業剪影。
+兩張新立繪按 Alpha 可見範圍快取繪製矩形，等比例放入 420×470 設計區並對齊腳底；不改原圖像素，也不每幀掃描 Alpha。已檢視左右翻轉、攻守、突進／復位與兩種視窗。當時鏡像測試將主角暫設為敵方僅供驗證。
+
+## 帝國敵軍四職業正式採用（2026-11-26）
+
+使用者採用帝國制式軍 A 案四張候選後，以 image_gen 清理背景與透明邊緣，接入 swordsman_enemy、archer_enemy、mage_enemy、knight_enemy.png。炭灰／暗紅／黑鐵配色、制式頭盔／面罩與稜角徽記區分敵我。生成式清理保留造型，但不保證每個像素與候選相同。
+
+來源原件位於 D:/Codex/generated_images/01a20b88-19f0-72c2-a0e2-ec5d82cad97d/；來源檔名、SHA256、Alpha 檢查及完整清理提示在 D:/Codex/visualizations/2026-11-26/hex-level-system/enemy-alpha-report.json 與 enemy-cleanup-prompts.json。原候選仍保留於 hex-imperial-candidates。
+
+來源朝右，遊戲右側敵軍由程式鏡像朝左，不預翻轉圖檔。四張同樣使用一次快取的 Alpha 範圍對齊站立線。Godot 實際渲染測試涵蓋四職業、雙方攻擊、進場後／突進／復位、1440×900 與 1100×720；104 項通過。代理已目視各職業演出，人物與武器在畫面內且面向對手，無可見矩形底色；弓頂原生留白窄，未為統一尺寸裁切武器。測試與截圖不等同使用者已接受最終遊戲呈現。

@@ -461,5 +461,67 @@
     "player_knight_02": {
       "weapon": "iron_sword"
     }
+  },
+  "progression": {
+    "growth": {
+      "swordsman": {
+        "max_hp": 200,
+        "max_mp": 100,
+        "attack_bonus": 100,
+        "magic_bonus": 25,
+        "defense": 50,
+        "resistance": 25
+      },
+      "archer": {
+        "max_hp": 150,
+        "max_mp": 100,
+        "attack_bonus": 100,
+        "magic_bonus": 25,
+        "defense": 25,
+        "resistance": 25
+      },
+      "mage": {
+        "max_hp": 100,
+        "max_mp": 200,
+        "attack_bonus": 25,
+        "magic_bonus": 100,
+        "defense": 25,
+        "resistance": 50
+      },
+      "knight": {
+        "max_hp": 300,
+        "max_mp": 100,
+        "attack_bonus": 75,
+        "magic_bonus": 25,
+        "defense": 75,
+        "resistance": 25
+      }
+    },
+    "thresholds": [
+      0,
+      100,
+      225,
+      375,
+      550,
+      750,
+      975,
+      1225,
+      1500,
+      1800,
+      2125,
+      2475,
+      2850,
+      3250,
+      3675,
+      4125,
+      4600,
+      5100,
+      5625,
+      6175
+    ],
+    "rewards": {
+      "participation": 30,
+      "kill": 40
+    }
   }
 }

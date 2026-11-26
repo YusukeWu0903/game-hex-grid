@@ -449,6 +449,7 @@ func begin_deployment(config: Dictionary, map_override: Dictionary = {}, selecte
 		return
 	battle.inventory = party.inventory.duplicate(true)
 	battle.loadouts = party.loadouts.duplicate(true)
+	battle.progression = party.progression.duplicate(true)
 	level = config.duplicate(true)
 	board.reset_camera()
 	mode = "DEPLOYMENT"
@@ -957,6 +958,9 @@ func render_level_editor() -> void:
 			render_level_editor())
 		sidebar.add_child(item)
 	label("敵方陣容",18)
+	if not editing_level.has("enemyLevels"):
+		editing_level.enemyLevels = []
+		for unused in editing_level.enemyIds: editing_level.enemyLevels.append(1)
 	for i in range(editing_level.enemyIds.size()):
 		var row_box = HBoxContainer.new()
 		sidebar.add_child(row_box)
@@ -971,6 +975,15 @@ func render_level_editor() -> void:
 			editing_level.enemyIds[i] = enemy_ids[index]
 			render_level_editor())
 		row_box.add_child(picker)
+		var enemy_level = SpinBox.new()
+		enemy_level.min_value = 1
+		enemy_level.max_value = 20
+		enemy_level.step = 1
+		enemy_level.prefix = "Lv."
+		enemy_level.value = editing_level.enemyLevels[i]
+		enemy_level.tooltip_text = "敵軍等級（依職業固定成長）"
+		enemy_level.value_changed.connect(func(value): editing_level.enemyLevels[i] = int(value))
+		row_box.add_child(enemy_level)
 		var remove = Button.new()
 		remove.text = "−"
 		remove.tooltip_text = "移除此敵人"
@@ -979,10 +992,12 @@ func render_level_editor() -> void:
 				var target_index = int(editing_level.get("targetEnemyIndex",0))
 				editing_level.targetEnemyIndex = -1 if i==target_index else (target_index-1 if i<target_index else target_index)
 			editing_level.enemyIds.remove_at(i)
+			editing_level.enemyLevels.remove_at(i)
 			render_level_editor())
 		row_box.add_child(remove)
 	button("加入敵人",func():
 		editing_level.enemyIds.append("enemy_swordsman_base")
+		editing_level.enemyLevels.append(1)
 		render_level_editor())
 	MissionUI.editor(self)
 	button("儲存關卡",save_level)

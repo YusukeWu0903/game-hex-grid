@@ -13,6 +13,10 @@ static func limit(level: Dictionary) -> int:
 	return int(level.get("deployLimit",level.get("playerIds",[]).size()))
 static func validate(level: Dictionary, map: Dictionary = {}) -> Array[String]:
 	var errors: Array[String] = []
+	if level.has("enemyLevels"):
+		if not level.enemyLevels is Array or level.enemyLevels.size()!=level.get("enemyIds",[]).size(): return ["敵軍等級必須對應每名敵人。"]
+		for lv in level.enemyLevels:
+			if not integer(lv,1,20): return ["敵軍等級必須為 1–20 的整數。"]
 	if not TYPES.has(level.get("winCondition")) or level.get("loseCondition")!="PLAYER_DEATH": errors.append("勝敗條件類型無效。")
 	var pool = level.get("playerIds",[])
 	if not pool is Array or pool.is_empty(): return ["候選角色清單無效。"]

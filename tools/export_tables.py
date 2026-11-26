@@ -12,6 +12,9 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 SCHEMA = {
+    '成長': ['id','HP百分點','MP百分點','物攻百分點','魔攻百分點','物防百分點','魔防百分點'],
+    '等級': ['id','等級','累積經驗'],
+    '經驗獎勵': ['id','經驗'],
     '職業': ['id','名稱','移動力','最大MP','最小射程','最大射程','傷害類型','物防','魔防','技能ID','普攻威力','敵方普攻威力','普攻MP'],
     '技能': ['id','名稱','最小射程','最大射程','MP消耗','威力','傷害類型','半徑','效果','防守加成'],
     '角色': ['id','名稱','職業ID','最大HP'],
@@ -69,6 +72,8 @@ def read_xlsx(path):
 
 def compile_tables(tables):
     d = {'jobs':{},'roster':[],'enemies':{},'equipment':{},'items':{},'loot_tables':{},'chest_tables':{},'starter_inventory':{},'default_loadouts':{}}
+    d['progression'] = {'growth':{},'thresholds':[], 'rewards':{}}
+    levels = {}
     skills = {}
     loc = {}
     def fail(sheet,row,text): raise TableError(f'{sheet} 第 {row} 列：{text}')
@@ -88,7 +93,14 @@ def compile_tables(tables):
                 loc[sheet,id] = row
             if '名稱' in v and (not isinstance(v['名稱'],str) or not v['名稱'].strip()): fail(sheet,row,'名稱不可空白')
             n = lambda key,lo=0,hi=999: number(v[key],sheet,row,lo,hi)
-            if sheet=='職業':
+            if sheet=='成長':
+                d['progression']['growth'][id] = {field:n(key,0,1000) for field,key in zip(['max_hp','max_mp','attack_bonus','magic_bonus','defense','resistance'],SCHEMA[sheet][1:])}
+            elif sheet=='等級':
+                lv=n('等級',1,20)
+                if lv in levels: fail(sheet,row,'等級重複')
+                levels[lv]=n('累積經驗',0,999999)
+            elif sheet=='經驗獎勵': d['progression']['rewards'][id]=n('經驗',0,9999)
+            elif sheet=='職業':
                 d['jobs'][id]={'name':v['名稱'],'movement':n('移動力',1,12),'max_mp':n('最大MP'),'range_min':n('最小射程',0,12),'range_max':n('最大射程',1,12),'damage_type':v['傷害類型'],'defense':n('物防',0,100),'resistance':n('魔防',0,100),'skill_id':v['技能ID'],'attack_damage':n('普攻威力',1,100),'enemy_damage':n('敵方普攻威力',1,100),'attack_mp_cost':n('普攻MP',0,100)}
             elif sheet=='技能':
                 skills[id]={'id':id,'name':v['名稱'],'range_min':n('最小射程',0,12),'range_max':n('最大射程',0,12),'mp_cost':n('MP消耗'),'damage':n('威力',0,100),'damage_type':v['傷害類型'],'radius':n('半徑',0,3),'effect':v['效果'],'guard':n('防守加成',0,100)}
@@ -144,6 +156,11 @@ def compile_tables(tables):
         if used[item_id]>d['starter_inventory'].get(item_id,0):fail('初始裝備',row,'裝備數量超過初始背包')
     for required,collection in [('swordsman',d['jobs']),('archer',d['jobs']),('mage',d['jobs']),('knight',d['jobs']),('wooden',d['chest_tables'])]:
         if required not in collection: raise TableError('缺少遊戲必要 ID：'+required)
+    if set(levels)!=set(range(1,21)) or levels.get(1)!=0: raise TableError('等級表必須完整包含 1–20 級；1 級累積經驗為 0')
+    if any(levels[i]>=levels[i+1] for i in range(1,20)): raise TableError('累積經驗必須逐級遞增')
+    if set(d['progression']['growth'])!=set(d['jobs']): raise TableError('成長表必須涵蓋每個職業，且不可有未知職業')
+    if set(d['progression']['rewards'])!={'participation','kill'}: raise TableError('經驗獎勵必須包含 participation 與 kill')
+    d['progression']['thresholds']=[levels[i] for i in range(1,21)]
     return d
 
 def export(source,destination,check_only=False):

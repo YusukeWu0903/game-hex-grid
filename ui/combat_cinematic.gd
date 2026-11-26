@@ -127,7 +127,7 @@ func silhouette(unit: Dictionary, base: Vector2, facing: float, attack_offset: f
 		var image_size = texture.get_size()
 		# Adopted mage/knight have different transparent padding. Cache visible bounds
 		# once so both soles share the stage baseline without altering source pixels.
-		if portrait_id in ["player_mage_01","player_knight_01"]:
+		if portrait_id in ["player_mage_01","player_knight_01"] or path.ends_with("_enemy.png"):
 			if not portrait_bounds.has(path):
 				portrait_bounds[path] = Rect2(texture.get_image().get_used_rect())
 			var source: Rect2 = portrait_bounds[path]

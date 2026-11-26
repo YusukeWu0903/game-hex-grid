@@ -18,6 +18,21 @@ class Tables(unittest.TestCase):
  def test_edit_changes_export(self):
   self.rows["職業"][2][1][10]=9
   self.assertEqual(m.compile_tables(self.rows)["jobs"]["mage"]["attack_damage"],9)
+ def test_progression_tables(self):
+  result=m.compile_tables(self.rows)['progression']
+  self.assertEqual(result['thresholds'][:3],[0,100,225])
+  self.assertEqual(result['growth']['mage']['magic_bonus'],100)
+  for sheet,mutate in [('等級',lambda rows:rows.pop()),('成長',lambda rows:rows.pop()),('經驗獎勵',lambda rows:rows.pop())]:
+   data=copy.deepcopy(self.rows);mutate(data[sheet])
+   with self.assertRaises(m.TableError):m.compile_tables(data)
+  self.rows['等級'][1][1][2]=0
+  with self.assertRaisesRegex(m.TableError,'遞增'):m.compile_tables(self.rows)
+ def test_progression_edit(self):
+  self.rows['成長'][0][1][1]=250
+  self.rows['經驗獎勵'][0][1][1]=35
+  data=m.compile_tables(self.rows)['progression']
+  self.assertEqual(data['growth']['swordsman']['max_hp'],250)
+  self.assertEqual(data['rewards']['participation'],35)
  def test_bad_rows_report_location(self):
   mutations=[("職業",0,2,-1),("職業",0,9,"missing"),("角色",0,2,"missing"),("掉落",0,2,1.5),("掉落",0,1,"missing"),("裝備",0,2,"head"),("初始裝備",0,2,"oak_staff"),("道具",0,2,0.5)]
   for sheet,row,col,value in mutations:
