@@ -114,7 +114,10 @@ func silhouette(unit: Dictionary, base: Vector2, facing: float, attack_offset: f
 	dark.a = alpha
 	draw_set_transform(_stage_offset+(base+Vector2(attack_offset,0))*_stage_scale,0,Vector2(facing,1)*_stage_scale)
 	# Optional adopted artwork can replace the placeholder without changing combat.
-	var path = "res://assets/portraits/%s.png" % str(unit.get("id",""))
+	var portrait_id = str(unit.get("id",""))
+	var shared_portraits = {"player_archer_02":"player_archer_01","player_mage_02":"player_mage_01","player_knight_02":"player_knight_01"}
+	portrait_id = shared_portraits.get(portrait_id,portrait_id)
+	var path = "res://assets/portraits/%s.png" % portrait_id
 	if not ResourceLoader.exists(path):
 		path = "res://assets/portraits/%s_%s.png" % [unit.job,str(unit.faction).to_lower()]
 	if not portrait_cache.has(path):
@@ -124,7 +127,7 @@ func silhouette(unit: Dictionary, base: Vector2, facing: float, attack_offset: f
 		var image_size = texture.get_size()
 		# Adopted mage/knight have different transparent padding. Cache visible bounds
 		# once so both soles share the stage baseline without altering source pixels.
-		if str(unit.get("id","")) in ["player_mage_01","player_knight_01"]:
+		if portrait_id in ["player_mage_01","player_knight_01"]:
 			if not portrait_bounds.has(path):
 				portrait_bounds[path] = Rect2(texture.get_image().get_used_rect())
 			var source: Rect2 = portrait_bounds[path]

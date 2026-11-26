@@ -12,7 +12,7 @@ class Tables(unittest.TestCase):
  def test_export_roundtrip(self):
   result=m.compile_tables(self.rows)
   self.assertEqual(len(result["jobs"]),4)
-  self.assertEqual(len(result["roster"]),5)
+  self.assertEqual(len(result["roster"]),8)
   self.assertEqual(result["jobs"]["mage"]["skill"]["radius"],1)
   self.assertEqual(result["jobs"]["knight"]["defense"],2)
  def test_edit_changes_export(self):

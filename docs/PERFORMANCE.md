@@ -29,3 +29,5 @@ RTX 3060、Compatibility、1440×900、60 FPS 上限，最大半徑 24 地圖：
 最大地圖合成 200 個回合節點：歷史額外靜態記憶體約 2.88 MiB、捕捉 P95 0.086 ms、回溯 1.406 ms、存檔 446,567 bytes、序列化 37.128 ms。讀檔驗證共享靜態地圖檢查後由 3255.64 ms 降至 226.414 ms；各節點單位與背包仍逐一驗證。此為合成歷史測試，並非實玩 200 回合。
 
 每名敵軍規劃約 42–43 ms，同步規劃仍可能有短暫停頓。未量測長時間洩漏、功耗或其他硬體。原始資料：D:/Codex/visualizations/2026-11-25/hex-rpg-expansion/performance.json 與 performance-rpg.json。
+
+編隊／任務擴充後複測（2026-11-26）：最大地圖合成200回合歷史額外2.876MiB，捕捉P95 0.091ms、回溯1.478ms、驗證267.469ms、快照446567 bytes；每名敵人規劃約46–48ms。與前輪同樣為本機合成歷史，非長時間實玩。任務條件在行動／回合事件判定，區域標示沿用有限提示格繪製；不新增每幀尋路。這輪未重測FPS，不沿用舊數據宣稱新FPS。原始資料在 D:/Codex/visualizations/2026-11-26/hex-squad-objectives/final-verification/performance-rpg.json。

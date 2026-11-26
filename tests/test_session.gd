@@ -22,7 +22,7 @@ func _initialize() -> void:
 	var db = Store.new(test_root.path_join("library.json"))
 	var map = db.map_by_id("map_tutorial")
 	var game = Session.new()
-	var roster = Catalog.roster_ids()
+	var roster = Catalog.roster_ids().slice(0,3)
 	check(game.prepare(map,[roster[0]],["enemy_swordsman_base"]).is_empty(),"prepare selected roster")
 	check(not game.deploy(roster[1],Hex.cell("-4,4,0")),"unselected roster cannot deploy")
 	check(not game.deploy(roster[0],Vector3i.ZERO),"non-spawn cannot deploy")
@@ -90,7 +90,7 @@ func _initialize() -> void:
 	check(new_db.levels.any(func(l): return l.levelId == "test_level"),"unplayable level is retained after map editing")
 	check(not new_db.validate_level(level).is_empty(),"unplayable level is rejected at play time")
 	level.winCondition = "SURVIVE"
-	check(not db.save_level(level).is_empty(),"unsupported objective rejected")
+	check(not db.save_level(level).is_empty(),"survival objective without parameters rejected")
 	# Complete real battles on both maps using legal model commands.
 	for map_id in ["map_tutorial","map_custom"]:
 		game = Session.new()

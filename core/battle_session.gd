@@ -2,6 +2,7 @@ class_name BattleSession
 extends RefCounted
 const Hex = preload("res://core/hex_rules.gd")
 const Rules = preload("res://core/battle_rules.gd")
+const Mission = preload("res://core/mission_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
 
 var map: Dictionary = {}
@@ -10,6 +11,8 @@ var allowed_ids: Array = []
 var phase = "MENU"
 var turn = 1
 var result = ""
+var result_reason = ""
+var mission: Dictionary = {}
 var revision = 0
 var inventory: Dictionary = {}
 var pending_loot: Dictionary = {}
@@ -21,7 +24,7 @@ var rng = RandomNumberGenerator.new()
 var battle_id = ""
 var settled = false
 
-func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array) -> Array[String]:
+func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array, config: Dictionary = {}) -> Array[String]:
 	var errors = Hex.validate_map(new_map)
 	errors.append_array(Catalog.validate_chest_tables(new_map))
 	if roster_ids.is_empty():
@@ -47,8 +50,13 @@ func prepare(new_map: Dictionary, roster_ids: Array, enemy_ids: Array) -> Array[
 	for id in enemy_ids:
 		if not Catalog.data().enemies.has(id):
 			errors.append("未知敵人：" + str(id))
+	if not config.is_empty():
+		errors.append_array(Mission.validate(config,new_map))
+		errors.append_array(Mission.selection_errors(config,roster_ids))
 	if not errors.is_empty():
 		return errors
+	mission = config.duplicate(true)
+	result_reason = ""
 	map = new_map.duplicate(true)
 	allowed_ids = roster_ids.duplicate()
 	units = []
@@ -110,10 +118,13 @@ func start() -> Array[String]:
 	if phase != "DEPLOYMENT":
 		return ["目前不在部署階段。"]
 	var errors = Rules.validate_deployment(map,units)
+	for id in Mission.required(mission):
+		if get_unit(id).is_empty(): errors.append("尚未部署必出角色："+Catalog.player(id,Vector3i.ZERO).name)
 	if errors.is_empty():
 		turn = 1
 		phase = "PLAYER"
 		capture_round()
+		check_mission()
 	return errors
 
 func can_control(id: String) -> bool:
@@ -134,6 +145,7 @@ func move_unit(id: String, to: Vector3i) -> Array[Vector3i]:
 	var unit = get_unit(id)
 	unit.cell = to
 	unit.moved = true
+	check_mission()
 	return path
 
 func attack(id: String, target_id: String, skill: bool) -> Dictionary:
@@ -166,10 +178,7 @@ func settle() -> void:
 			defeated_ids[unit.id] = true
 			roll_loot(str(unit.get("loot_table","")))
 	units = units.filter(func(u): return u.hp > 0)
-	result = Rules.outcome(units)
-	if not result.is_empty():
-		phase = "RESULT"
-		return
+	if check_mission(): return
 	if phase == "PLAYER" and units.filter(func(u): return u.faction == "PLAYER" and not u.acted).is_empty():
 		phase = "ENEMY"
 
@@ -210,6 +219,7 @@ func next_round() -> bool:
 	for unit in units:
 		if unit.faction == "ENEMY" and not unit.acted:
 			return false
+	if check_mission(true): return true
 	turn += 1
 	for unit in units:
 		unit.acted = false
@@ -307,6 +317,7 @@ func rewind_to(round_number: int) -> bool:
 		turn = round_number
 		phase = "PLAYER"
 		result = ""
+		result_reason = ""
 		history.resize(i+1)
 		revision += 1
 		return true
@@ -343,3 +354,12 @@ func import_rpg(value: Dictionary) -> void:
 				if unit.has(field): unit[field] = int(unit[field])
 	settled = false
 	if history.is_empty(): capture_round()
+
+func check_mission(round_end: bool = false) -> bool:
+	var verdict = Mission.evaluate(mission,units,turn,defeated_ids,round_end)
+	result = verdict.result
+	result_reason = verdict.reason
+	if not result.is_empty():
+		phase = "RESULT"
+		return true
+	return false

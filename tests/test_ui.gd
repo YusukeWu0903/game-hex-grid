@@ -58,6 +58,8 @@ func run() -> void:
 	check(app.mode == "MENU","menu opens")
 	await capture("01-menu")
 	check(await press_button("開始部署"),"deployment button wired")
+	check(app.mode == "SQUAD","squad list opens")
+	check(await press_button("確認出戰並部署"),"squad selection confirmed")
 	check(app.mode == "DEPLOYMENT","deployment opens")
 	check(await press_button("自動部署"),"auto deploy button wired")
 	await capture("02-deployment")

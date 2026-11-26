@@ -1,6 +1,7 @@
 class_name GameDataStore
 extends RefCounted
 const Hex = preload("res://core/hex_rules.gd")
+const Mission = preload("res://core/mission_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
 var maps: Array = []
 var levels: Array = []
@@ -35,9 +36,24 @@ func load_library() -> void:
 	var expedition = default_level("map_rpg")
 	expedition.levelId = "level_rpg"
 	expedition.name = "遠征試煉：法師與騎士"
-	expedition.playerIds = Catalog.roster_ids()
+	expedition.playerIds = ["player_swordsman_01","player_swordsman_02","player_archer_01","player_mage_01","player_knight_01"]
 	expedition.enemyIds = ["enemy_swordsman_base","enemy_archer_base","enemy_mage_base","enemy_knight_base"]
 	levels.append(expedition)
+	for kind in ["ANNIHILATION","TARGET","SURVIVE","REACH"]:
+		var exercise = expedition.duplicate(true)
+		exercise.levelId = "mission_"+kind.to_lower()
+		exercise.name = {"ANNIHILATION":"編隊演習：自由出戰","TARGET":"斬首任務：帝國騎士","SURVIVE":"守護任務：堅守三回合","REACH":"突破任務：抵達集結區"}[kind]
+		exercise.playerIds = Catalog.roster_ids()
+		exercise.deployLimit = 5
+		exercise.requiredIds = ["player_swordsman_01"]
+		exercise.protectedIds = ["player_mage_01"] if kind=="SURVIVE" else []
+		exercise.winCondition = kind
+		exercise.targetEnemyIndex = 3
+		exercise.surviveTurns = 3
+		exercise.goalCell = [0,0,0]
+		exercise.goalRadius = 0
+		exercise.turnLimit = 8 if kind=="REACH" else 0
+		levels.append(exercise)
 	if not FileAccess.file_exists(storage_path):
 		return
 	var value = JSON.parse_string(FileAccess.get_file_as_string(storage_path))
@@ -82,8 +98,7 @@ func validate_level(value: Variant, require_playable: bool = true) -> Array[Stri
 	var map = map_by_id(value.mapId)
 	if map.is_empty() and require_playable:
 		errors.append("找不到地圖：" + value.mapId)
-	if value.get("winCondition","") != "ANNIHILATION" or value.get("loseCondition","") != "PLAYER_DEATH":
-		errors.append("此版本僅支援敵方全滅／我方全滅。")
+
 	for key in ["playerIds","enemyIds"]:
 		if not value.get(key) is Array or value[key].is_empty():
 			errors.append(key + " 必須包含至少一個單位。")
@@ -97,10 +112,12 @@ func validate_level(value: Variant, require_playable: bool = true) -> Array[Stri
 	for id in value.enemyIds:
 		if not id is String or not Catalog.data().enemies.has(id):
 			errors.append("無效敵人：" + str(id))
+	errors.append_array(Mission.validate(value,map if require_playable else {}))
+	if not errors.is_empty(): return errors
 	if not map.is_empty() and require_playable:
 		var p_count = map.spawnPoints.values().count("PLAYER")
 		var e_count = map.spawnPoints.values().count("ENEMY")
-		if value.playerIds.size() > p_count:
+		if Mission.limit(value) > p_count:
 			errors.append("我方出生點不足。")
 		if value.enemyIds.size() > e_count:
 			errors.append("敵方出生點不足。")

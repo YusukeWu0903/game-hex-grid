@@ -2,6 +2,7 @@ class_name BattleSave
 extends RefCounted
 const Hex = preload("res://core/hex_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
+const Mission = preload("res://core/mission_rules.gd")
 const Session = preload("res://core/battle_session.gd")
 const VERSION = 2
 const MAX_BYTES = 33554432
@@ -37,18 +38,20 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 	for field in ["levelId","name","mapId"]:
 		if not level.get(field) is String or level[field].strip_edges().is_empty() or level[field].length()>160:
 			return invalid("關卡名稱或識別碼格式錯誤。")
-	if level.mapId != value.map.mapId or level.get("winCondition") != "ANNIHILATION" or level.get("loseCondition") != "PLAYER_DEATH":
+	if level.mapId != value.map.mapId:
 		return invalid("存檔關卡與地圖或勝敗條件不符。")
 	if not level.get("playerIds") is Array or not level.get("enemyIds") is Array or not value.get("allowed_ids") is Array:
 		return invalid("存檔出戰名單格式錯誤。")
 	for id in level.playerIds + level.enemyIds:
 		if not id is String:
 			return invalid("存檔角色識別碼格式錯誤。")
-	if value.allowed_ids != level.playerIds:
+	if not Mission.validate(level,value.map).is_empty() or not Mission.selection_errors(level,value.allowed_ids).is_empty():
 		return invalid("存檔出戰名單不一致。")
+	if int(level.get("turnLimit",0))>0 and int(value.turn)>int(level.turnLimit): return invalid("存檔已超過任務回合上限。")
+	if level.get("winCondition")=="SURVIVE" and int(value.turn)>int(level.get("surviveTurns",0)): return invalid("存活任務回合無效。")
 	if not shared_static:
 		var prepared = Session.new()
-		errors = prepared.prepare(value.map,level.playerIds,level.enemyIds)
+		errors = prepared.prepare(value.map,value.allowed_ids,level.enemyIds,level)
 		if not errors.is_empty():
 			return invalid("存檔關卡無法準備："+"；".join(errors))
 	if not value.get("units") is Array or value.units.is_empty() or value.units.size()>level.playerIds.size()+level.enemyIds.size():
@@ -66,7 +69,7 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 			return invalid("存檔單位 ID 重複。")
 		seen_ids[unit.id] = true
 		var canonical = {}
-		if unit.faction == "PLAYER" and level.playerIds.has(unit.id):
+		if unit.faction == "PLAYER" and value.allowed_ids.has(unit.id):
 			canonical = Catalog.player(unit.id,Vector3i.ZERO)
 		elif unit.faction == "ENEMY":
 			for i in range(level.enemyIds.size()):
@@ -113,12 +116,14 @@ static func validate(value: Variant, shared_static: bool = false) -> Dictionary:
 			enemy_count += 1
 			if unit.acted or unit.moved:
 				return invalid("我方回合的敵方行動旗標錯誤。")
-	if player_count==0 or enemy_count==0 or available_count==0:
+	if player_count==0 or available_count==0:
 		return invalid("此存檔已結束或不在可操作的我方回合。")
 	var rpg = value.get("rpg",{})
 	if value.version==VERSION:
 		var rpg_error = validate_rpg(rpg,value)
 		if not rpg_error.is_empty(): return invalid(rpg_error)
+	if not Mission.evaluate(level,normalized,int(value.turn),rpg.get("defeated_ids",{})).result.is_empty():
+		return invalid("此存檔的關卡目標已結束。")
 	return {"ok":true,"message":"","rpg":rpg.duplicate(true),"units":normalized,"map":value.map.duplicate(true),
 		"level":level.duplicate(true),"allowed_ids":value.allowed_ids.duplicate(),"turn":int(value.turn),"saved_at":value.saved_at}
 
@@ -180,6 +185,8 @@ static func restore(session: RefCounted, loaded: Dictionary) -> void:
 	session.turn = loaded.turn
 	session.phase = "PLAYER"
 	session.result = ""
+	session.result_reason = ""
+	session.mission = loaded.level.duplicate(true)
 	session.revision += 1
 	session.import_rpg(loaded.get("rpg",{}))
 

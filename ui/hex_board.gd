@@ -35,6 +35,8 @@ var selected_id = ""
 var reachable: Dictionary = {}
 var target_cells: Dictionary = {}
 var area_cells: Dictionary = {}
+var objective_cells: Dictionary = {}
+var objective_roles: Dictionary = {}
 var threat_cells: Dictionary = {}
 var inspected_id = ""
 var pan_offset = Vector2.ZERO
@@ -199,6 +201,7 @@ func _draw() -> void:
 		keys.merge(reachable)
 		keys.merge(target_cells)
 		keys.merge(area_cells)
+		keys.merge(objective_cells)
 		if show_spawns: keys.merge(map.spawnPoints)
 		keys.merge(map.get("chests",{}))
 		if Hex.inside(hovered,map.radius): keys[Hex.key(hovered)] = true
@@ -209,7 +212,7 @@ func _draw() -> void:
 		var terrain = map.terrains.get(key,"PLAIN")
 		var at = position_of(cell)
 		if not Rect2(Vector2(-hs,-hs*2),size+Vector2(hs*2,hs*4)).has_point(at): continue
-		var has_overlay = area_cells.has(key) or invalid_cells.has(key) or threat_cells.has(key) or reachable.has(key) or target_cells.has(key) or cell==hovered
+		var has_overlay = objective_cells.has(key) or area_cells.has(key) or invalid_cells.has(key) or threat_cells.has(key) or reachable.has(key) or target_cells.has(key) or cell==hovered
 		var points = polygon(at,hs-1.5) if has_overlay else PackedVector2Array()
 		if tile_atlas == null:
 			draw_colored_polygon(polygon(at,hs-1.5),COLORS.get(terrain,COLORS.PLAIN))
@@ -229,6 +232,8 @@ func _draw() -> void:
 		if target_cells.has(key):
 			draw_colored_polygon(points,Color(0.9,0.29,0.28,0.20))
 			draw_polyline(outline,Color("#dd7370"),1.5,true)
+		if objective_cells.has(key):
+			draw_polyline(outline,Color("#6fffd2"),3,true)
 		if area_cells.has(key):
 			draw_colored_polygon(points,Color(1,0.65,0.1,0.35))
 			draw_polyline(outline,Color("#ffc96b"),2.0,true)
@@ -304,7 +309,7 @@ func draw_unit(unit: Dictionary, hs: float) -> void:
 	draw_rect(Rect2(base,Vector2(width*float(unit.hp)/unit.max_hp,4)),Color("#74c795"))
 	draw_rect(Rect2(base+Vector2(0,6),Vector2(width,3)),Color("#16202c"))
 	draw_rect(Rect2(base+Vector2(0,6),Vector2(width*float(unit.mp)/maxi(1,unit.max_mp),3)),Color("#6cb6dd"))
-	text_at(at+Vector2(0,-radius-7),unit.name,clampi(int(hs*0.25),11,15),Color("#e2e8ee"))
+	text_at(at+Vector2(0,-radius-7),str(objective_roles.get(unit.id,""))+unit.name,clampi(int(hs*0.25),11,15),Color("#e2e8ee"))
 	if unit.acted:
 		text_at(at+Vector2(radius,0),"✓",13,Color("#e2e8ee"))
 

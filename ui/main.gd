@@ -15,6 +15,11 @@ const Hex = preload("res://core/hex_rules.gd")
 const Rules = preload("res://core/battle_rules.gd")
 const Catalog = preload("res://core/catalog.gd")
 const Party = preload("res://core/party_store.gd")
+const Mission = preload("res://core/mission_rules.gd")
+const MissionUI = preload("res://ui/mission_ui.gd")
+var squad_config: Dictionary = {}
+var squad_map: Dictionary = {}
+var squad_ids: Array = []
 const RPGUI = preload("res://ui/rpg_ui.gd")
 var party
 var selected_item = ""
@@ -370,6 +375,8 @@ func invalidate_animation() -> void:
 	board.effects.clear()
 	board.opened_chests = {}
 	board.area_cells = {}
+	board.objective_cells = {}
+	board.objective_roles = {}
 	board.threat_cells.clear()
 	board.inspected_id = ""
 	inspected_id = ""
@@ -388,6 +395,8 @@ func show_menu() -> void:
 	board.target_cells = {}
 	board.path = []
 	board.area_cells = {}
+	board.objective_cells = {}
+	board.objective_roles = {}
 	board.show_spawns = false
 	board.show_coordinates = false
 	var preview = store.map_by_id(level.get("mapId","map_custom"))
@@ -407,9 +416,9 @@ func show_menu() -> void:
 		show_menu())
 	var map = store.map_by_id(level.mapId)
 	label(map.get("name","未知地圖"),18)
-	label("敵軍全滅即勝利\n我方全滅即失敗")
+	label(Mission.description(level))
 	label("可出戰 %d 人 · 敵方 %d 人" % [level.playerIds.size(),level.enemyIds.size()])
-	button("開始部署",func(): begin_deployment(level))
+	button("開始部署",func(): MissionUI.open(self,level))
 	button("繼續戰鬥",load_battle,not FileAccess.file_exists(battle_save_path()))
 	if FileAccess.file_exists(battle_save_path()+".bak"):
 		button("讀取上一份備份",func(): load_battle(true))
@@ -418,19 +427,23 @@ func show_menu() -> void:
 	button("關卡編輯",func(): open_level_editor(level))
 	button("地圖編輯",func(): open_map_editor(board.map))
 	label("滑鼠滾輪縮放棋盤",13)
-	detail_label.text = "兩種職業，六種地形。每回合先移動，再攻擊或待機。"
+	detail_label.text = "四種職業，六種地形。每回合先移動，再攻擊或待機。"
 	notice("選擇關卡，開始部署。")
 	board.queue_redraw()
 
-func begin_deployment(config: Dictionary, map_override: Dictionary = {}) -> void:
+func begin_deployment(config: Dictionary, map_override: Dictionary = {}, selected_ids: Array = []) -> void:
 	var errors: Array[String] = []
 	if map_override.is_empty():
 		errors = store.validate_level(config)
 	if not errors.is_empty():
 		notice("\n".join(errors))
 		return
+	if selected_ids.is_empty() and config.playerIds.size()>Mission.limit(config):
+		MissionUI.open(self,config,map_override)
+		return
+	var roster = config.playerIds if selected_ids.is_empty() else selected_ids
 	invalidate_animation()
-	var prepared = battle.prepare(store.map_by_id(config.mapId) if map_override.is_empty() else map_override,config.playerIds,config.enemyIds)
+	var prepared = battle.prepare(store.map_by_id(config.mapId) if map_override.is_empty() else map_override,roster,config.enemyIds,config)
 	if not prepared.is_empty():
 		notice("\n".join(prepared))
 		return
@@ -486,6 +499,9 @@ func start_battle() -> void:
 		return
 	mode = "BATTLE"
 	selection = ""
+	if battle.phase=="RESULT":
+		after_action()
+		return
 	battle_ui()
 	notice("第 1 回合：選擇我方角色。")
 
@@ -499,6 +515,7 @@ func battle_ui() -> void:
 		return
 	label("第 %d 回合" % battle.turn,23)
 	label("我方回合" if battle.phase == "PLAYER" else "敵方行動中",18)
+	label(Mission.description(level),14)
 	RPGUI.add_rewind(self)
 	var selected = battle.get_unit(inspected_id) if not inspected_id.is_empty() else selected_unit()
 	if selected.is_empty():
@@ -638,6 +655,11 @@ func after_action() -> void:
 
 func sync_board() -> void:
 	board.area_cells = {}
+	board.objective_roles = {}
+	if mode in ["BATTLE","DEPLOYMENT","RESULT"]:
+		for id in level.get("protectedIds",[]): board.objective_roles[id] = "[保護] "
+		if level.get("winCondition")=="TARGET": board.objective_roles["enemy_%d" % int(level.get("targetEnemyIndex",0))] = "[目標] "
+	board.objective_cells = MissionUI.goal_cells(level,battle.map) if mode in ["BATTLE","DEPLOYMENT","RESULT"] else {}
 	if mode in ["BATTLE","DEPLOYMENT","RESULT"]:
 		board.map = battle.map
 		board.invalid_cells = {}
@@ -658,7 +680,7 @@ func sync_board() -> void:
 	board.path = []
 	if mode == "BATTLE":
 		state_label.text = "第 %d 回合  ·  %s" % [battle.turn,"我方回合" if battle.phase == "PLAYER" else "敵方回合"]
-		context_label.text = "%s  ·  目標：擊敗全部敵人" % battle.map.name
+		context_label.text = "%s  ·  %s" % [battle.map.name,Mission.victory_text(level)]
 		detail_label.text = "選擇角色，在棋子周圍下達指令；右鍵 / Esc 返回或取消。"
 		var unit = selected_unit()
 		if not busy and not unit.is_empty() and battle.can_control(selection):
@@ -775,6 +797,9 @@ func on_cell_clicked(cell: Vector3i, mouse_button: int) -> void:
 		if token != generation:
 			return
 		busy = false
+		if battle.phase=="RESULT":
+			after_action()
+			return
 		action_mode = "COMMAND"
 		battle_ui()
 		notice("移動完成。從角色周圍選擇攻擊、技能或待機。")
@@ -870,6 +895,9 @@ func run_enemy_turn() -> void:
 		after_action()
 	else:
 		battle.next_round()
+		if battle.phase=="RESULT":
+			after_action()
+			return
 		selection = ""
 		action_mode = "MOVE"
 		battle_ui()
@@ -880,7 +908,7 @@ func show_result_controls() -> void:
 	label("戰鬥勝利" if victory else "戰鬥失敗",28)
 	label("VICTORY" if victory else "DEFEAT",18)
 	label("完成於第 %d 回合" % battle.turn)
-	label("敵軍已全數擊敗。" if victory else "我方已全軍覆沒。")
+	label(battle.result_reason if not battle.result_reason.is_empty() else ("目標已完成。" if victory else "我方全軍覆沒。"))
 	RPGUI.result_controls(self)
 	label("下次出戰將恢復全部 HP／MP。",14)
 	button("重新部署",func(): begin_deployment(level,battle.map.duplicate(true)))
@@ -914,7 +942,7 @@ func render_level_editor() -> void:
 	map_picker.item_selected.connect(func(index):
 		editing_level.mapId = store.maps[index].mapId
 		render_level_editor())
-	label("我方出戰名單",18)
+	label("可供玩家挑選的角色",18)
 	for row in Catalog.roster():
 		var item = CheckBox.new()
 		item.text = row.name+" · "+Catalog.data().jobs[row.job].name
@@ -923,7 +951,10 @@ func render_level_editor() -> void:
 			if value and not editing_level.playerIds.has(row.id):
 				editing_level.playerIds.append(row.id)
 			elif not value:
-				editing_level.playerIds.erase(row.id))
+				editing_level.playerIds.erase(row.id)
+				for field in ["requiredIds","protectedIds"]:
+					if editing_level.has(field): editing_level[field].erase(row.id)
+			render_level_editor())
 		sidebar.add_child(item)
 	label("敵方陣容",18)
 	for i in range(editing_level.enemyIds.size()):
@@ -936,33 +967,39 @@ func render_level_editor() -> void:
 			picker.add_item(Catalog.data().enemies[enemy_ids[j]].name)
 			if enemy_ids[j] == editing_level.enemyIds[i]:
 				picker.select(j)
-		picker.item_selected.connect(func(index): editing_level.enemyIds[i] = enemy_ids[index])
+		picker.item_selected.connect(func(index):
+			editing_level.enemyIds[i] = enemy_ids[index]
+			render_level_editor())
 		row_box.add_child(picker)
 		var remove = Button.new()
 		remove.text = "−"
 		remove.tooltip_text = "移除此敵人"
 		remove.pressed.connect(func():
+			if editing_level.get("winCondition")=="TARGET":
+				var target_index = int(editing_level.get("targetEnemyIndex",0))
+				editing_level.targetEnemyIndex = -1 if i==target_index else (target_index-1 if i<target_index else target_index)
 			editing_level.enemyIds.remove_at(i)
 			render_level_editor())
 		row_box.add_child(remove)
 	button("加入敵人",func():
 		editing_level.enemyIds.append("enemy_swordsman_base")
 		render_level_editor())
-	label("勝利：敵方全滅\n失敗：我方全滅",14)
+	MissionUI.editor(self)
 	button("儲存關卡",save_level)
 	button("另存新關卡",func():
 		editing_level.levelId = "level_%d" % Time.get_ticks_usec()
 		save_level())
 	button("試玩部署",func():
 		var errors = store.validate_level(editing_level)
-		if errors.is_empty(): begin_deployment(editing_level)
+		if errors.is_empty(): MissionUI.open(self,editing_level)
 		else: notice("\n".join(errors)))
 	button("編輯這張地圖",func(): open_map_editor(store.map_by_id(editing_level.mapId)))
 	button("返回選單",show_menu)
 	board.map = store.map_by_id(editing_level.mapId)
 	board.units = []
 	board.show_spawns = true
-	board.show_coordinates = false
+	board.show_coordinates = true
+	board.objective_cells = MissionUI.goal_cells(editing_level,board.map)
 	board.reachable = {}
 	board.target_cells = {}
 	board.path = []
@@ -970,7 +1007,7 @@ func render_level_editor() -> void:
 	board.queue_redraw()
 	state_label.text = "關卡編輯"
 	context_label.text = "配置出戰名單與敵軍"
-	detail_label.text = "所選角色將成為部署階段唯一可用的名單。"
+	detail_label.text = "所選角色形成候選池；玩家在戰前按上限選出本場隊伍。"
 	notice("編輯後儲存，或直接試玩部署。")
 
 func save_level() -> void:

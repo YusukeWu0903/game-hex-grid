@@ -131,6 +131,24 @@
       "name": "雷昂",
       "job": "knight",
       "max_hp": 16
+    },
+    {
+      "id": "player_archer_02",
+      "name": "諾亞",
+      "job": "archer",
+      "max_hp": 11
+    },
+    {
+      "id": "player_mage_02",
+      "name": "賽拉",
+      "job": "mage",
+      "max_hp": 8
+    },
+    {
+      "id": "player_knight_02",
+      "name": "布蘭",
+      "job": "knight",
+      "max_hp": 17
     }
   ],
   "enemies": {
@@ -409,9 +427,9 @@
     }
   },
   "starter_inventory": {
-    "iron_sword": 3,
-    "longbow": 1,
-    "oak_staff": 1,
+    "iron_sword": 4,
+    "longbow": 2,
+    "oak_staff": 2,
     "leather_armor": 2,
     "plate_armor": 1,
     "ward_robe": 1,
@@ -432,6 +450,15 @@
       "weapon": "oak_staff"
     },
     "player_knight_01": {
+      "weapon": "iron_sword"
+    },
+    "player_archer_02": {
+      "weapon": "longbow"
+    },
+    "player_mage_02": {
+      "weapon": "oak_staff"
+    },
+    "player_knight_02": {
       "weapon": "iron_sword"
     }
   }
